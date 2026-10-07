@@ -11,7 +11,7 @@ const scriptsDir = fileURLToPath(new URL('.', import.meta.url));
 
 const suites = [
   ['client-lint', 'client-lint.mjs', []],
-  ['sanitize', 'sanitize-test.mjs', []],
+  ['gemini-models', 'gemini-models-test.mjs', []],
   ['gemini-quota', 'gemini-quota-test.mjs', []],
 ];
 

@@ -1,10 +1,23 @@
 /**
- * dsh-our-free-model — Gemini Dedicated Edition with Integrated Quota Monitor
+ * dsh-gemini — DeepSeek Harness Dedicated Gemini Engine
+ * Features:
+ *   - Google Cloud Code PA Dynamic Model Discovery
+ *   - Hardware Hash & Session Anti-Fingerprint Stealth
+ *   - Real-time 5h / Weekly Dual Quota Synchronization
+ *   - Multi-Account Auto-Failover & Auto Token Renewal
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { fetchQuota } from './src/quota.js';
+import {
+  fetchQuota,
+  getCachedModels,
+  saveCachedModels,
+  fetchRemoteAvailableModels,
+  getAccounts,
+  getToken,
+  fetchOne
+} from './src/quota.js';
+import { getDeviceIdentity, getSessionId } from './src/stealth.js';
 
 export const name = 'dsh-gemini';
 export const inject = ['llm'];
@@ -16,34 +29,120 @@ export function apply(ctx, config = {}) {
   // 1. Mount Gemini Channel Pack (AccountPool, GeminiAuth, GeminiAdapter, RPC)
   ctx.inject(['credentials', 'commands', 'llm'], scoped => {
     let stopped = false;
-    scoped.effect(() => () => { stopped = true; }, 'our-free-model: channel pack');
+    scoped.effect(() => () => { stopped = true; }, 'dsh-gemini: channel pack');
 
     void import('./vendor/channel-pack/pack.js').then(pack => {
       if (stopped) return;
       pack.apply(scoped);
-      logger.info?.('our-free-model: Gemini channel pack mounted successfully');
+      logger.info?.('dsh-gemini: Gemini channel pack mounted successfully');
     }).catch(error => {
       if (stopped) return;
-      logger.warn?.(`our-free-model: Gemini channel pack failed to mount: ${error?.message ?? error}`);
+      logger.warn?.(`dsh-gemini: Gemini channel pack failed to mount: ${error?.message ?? error}`);
     });
   });
 
-  // 2. Mount WebServer Routes (/api/gemini-quota and settings endpoints)
+  // 2. Mount WebServer Routes (/api/gemini/*, /api/gemini-quota, /api/our-free-model/*)
   ctx.inject(['webServer'], scoped => {
     const server = scoped.webServer;
 
-    // Quota endpoint
+    // A. Quota Endpoint (supports both /api/gemini/quota and legacy /api/gemini-quota)
+    const handleQuota = async (req, res) => {
+      const force = req.url?.includes('force=true') || req.method === 'POST';
+      const data = await fetchQuota(force);
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      res.end(JSON.stringify(data));
+    };
+
     scoped.effect(() => server.register({
       kind: 'prefix',
       path: '/api/gemini-quota',
-      handler: async (req, res) => {
-        const data = await fetchQuota(req.url?.includes('force=true') || req.method === 'POST');
-        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-        res.end(JSON.stringify(data));
-      }
-    }), 'our-free-model: quota api');
+      handler: handleQuota
+    }), 'dsh-gemini: legacy quota api');
 
-    // Settings dashboard endpoints
+    // B. Main Gemini API Gateway
+    scoped.effect(() => server.register({
+      kind: 'prefix',
+      path: '/api/gemini',
+      handler: async (req, res) => {
+        const url = new URL(req.url ?? '/', 'http://localhost');
+        const p = url.pathname.replace(/^\/api\/gemini/, '') || '/';
+
+        res.setHeader('content-type', 'application/json; charset=utf-8');
+        res.setHeader('cache-control', 'no-store');
+
+        // Quota
+        if (p === '/quota' || p === '/quota/') {
+          return handleQuota(req, res);
+        }
+
+        // Models list
+        if (p === '/models' || p === '/models/') {
+          const models = getCachedModels();
+          return res.end(JSON.stringify({ ok: true, models, count: models.length }));
+        }
+
+        // Live fetch models from Google Cloud Code PA
+        if (p === '/models/fetch' || p === '/models/fetch/') {
+          try {
+            const models = await fetchRemoteAvailableModels();
+            return res.end(JSON.stringify({ ok: true, models, count: models.length, fetchedAt: Date.now() }));
+          } catch (err) {
+            const fallback = getCachedModels();
+            return res.end(JSON.stringify({
+              ok: false,
+              error: String(err?.message || err),
+              models: fallback,
+              count: fallback.length
+            }));
+          }
+        }
+
+        // Ping / Latency test
+        if (p === '/ping' || p === '/ping/') {
+          const start = Date.now();
+          try {
+            const accs = getAccounts().filter(a => a.enabled);
+            const token = accs[0] ? getToken(accs[0].credentialRef) : null;
+            if (token) {
+              await fetchOne(token);
+            }
+            const latency = Date.now() - start;
+            return res.end(JSON.stringify({ ok: true, latency, timestamp: Date.now() }));
+          } catch (err) {
+            return res.end(JSON.stringify({ ok: false, error: err.message, latency: Date.now() - start }));
+          }
+        }
+
+        // Stealth identity status
+        if (p === '/stealth' || p === '/stealth/') {
+          const id = getDeviceIdentity();
+          return res.end(JSON.stringify({
+            ok: true,
+            machineIdHash: `${id.machineId.slice(0, 12)}...${id.machineId.slice(-8)}`,
+            sessionId: getSessionId(),
+            clientVersion: id.clientVersion,
+            platform: id.platform
+          }));
+        }
+
+        // General status
+        if (p === '/state' || p === '/state/') {
+          const accounts = getAccounts();
+          const models = getCachedModels();
+          return res.end(JSON.stringify({
+            ok: true,
+            version,
+            accountsCount: accounts.length,
+            modelsCount: models.length
+          }));
+        }
+
+        res.writeHead(404);
+        res.end(JSON.stringify({ error: 'not_found', path: p }));
+      }
+    }), 'dsh-gemini: gemini api');
+
+    // C. Backward compatibility for legacy our-free-model callers
     scoped.effect(() => server.register({
       kind: 'prefix',
       path: '/api/our-free-model',
@@ -54,13 +153,12 @@ export function apply(ctx, config = {}) {
         res.setHeader('content-type', 'application/json; charset=utf-8');
         res.setHeader('cache-control', 'no-store');
 
+        const models = getCachedModels();
         if (p === '/summary') {
           res.end(JSON.stringify({
             version,
-            catalog: [
-              { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', channel: 'channels', provider: 'gemini' }
-            ],
-            available: 1
+            catalog: models.map(m => ({ id: m.id, name: m.name, channel: 'channels', provider: 'gemini' })),
+            available: models.length
           }));
         } else if (p === '/meta') {
           res.end(JSON.stringify({ version }));
@@ -72,8 +170,8 @@ export function apply(ctx, config = {}) {
           res.end(JSON.stringify({ ok: true }));
         }
       }
-    }), 'our-free-model: dashboard api');
+    }), 'dsh-gemini: legacy dashboard api');
 
-    logger.info?.('our-free-model: web endpoints mounted');
+    logger.info?.('dsh-gemini: web endpoints mounted');
   });
 }
