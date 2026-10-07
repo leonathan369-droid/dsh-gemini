@@ -2625,23 +2625,11 @@ window.__ModuleLoader__.load({
      * and logo tile; `login` picks the flow the card offers.
      */
     const CHANNEL_PROVIDERS = [
-      { id: 'codearts', name: 'CodeArts', org: '华为云', accent: '#C7000B', note: 'DeepSeek · GLM · openPangu，每日免费额度', login: 'browser' },
-      { id: 'buddy', name: 'WorkBuddy 国内版', org: '腾讯 · copilot.tencent.com', accent: '#0A7AFF', note: 'CodeBuddy 同一端点：DeepSeek · Kimi · GLM 免费线，每日积分', login: 'browser' },
-      { id: 'workbuddy', name: 'WorkBuddy 国际版', org: '腾讯 · workbuddy.ai', accent: '#0B63CE', note: '国际版端点：独立账号与积分体系', login: 'browser' },
-      { id: 'lobsterai', name: 'LobsterAI', org: '有道', accent: '#FF6A00', note: '龙虾 · 每日签到积分', login: 'browser' },
-      { id: 'qoder', name: 'Qoder', org: '阿里系', accent: '#615CED', note: '每日 100 Credits，加密推理端点', login: 'browser' },
-      { id: 'qodercn', name: 'Qoder 中国版', org: '阿里系', accent: '#7A6CF0', note: '中国版端点与模型池', login: 'browser' },
-      { id: 'trae', name: 'TRAE', org: '字节', accent: '#00BFA6', note: '手机号登录', login: 'browser' },
-      { id: 'cline', name: 'Cline', org: 'Cline', accent: '#5B5BD6', note: 'Cline 账号免费额度', login: 'browser' },
-      { id: 'loomy', name: 'Loomy', org: '讯飞', accent: '#2F6BFF', note: '微信扫码，或短信验证码备用', login: 'browser+sms' },
-      { id: 'raccoon', name: 'Raccoon', org: '商汤', accent: '#00A6A6', note: '手机号登录', login: 'browser' },
-      { id: 'minimax', name: 'MiniMax Code', org: 'MiniMax', accent: '#E4007F', note: '设备码 + PKCE，每日签到', login: 'browser' },
-      { id: 'zcode', name: 'ZCode', org: '智谱', accent: '#3B6EF6', note: '浏览器登录（需本机可开浏览器）', login: 'browser' },
-      { id: 'gemini', name: 'Gemini', org: 'Google Code Assist', accent: '#4285F4', note: '本地回调 OAuth 免费线', login: 'browser' },
+      { id: 'gemini', name: 'Gemini', org: 'Google Code Assist', accent: '#4285F4', note: 'Google 官方授权 · 多账号故障转移与配额监控', login: 'browser' },
     ]
 
     /** Channels whose daily credits can be claimed from here. */
-    const CREDIT_PROVIDERS = new Set(['codearts', 'buddy', 'workbuddy', 'lobsterai', 'qoder', 'qodercn', 'loomy', 'minimax'])
+    const CREDIT_PROVIDERS = new Set()
 
     /**
      * The host RPC the pack registered at `/api/channel-pack`.
@@ -3586,16 +3574,11 @@ window.__ModuleLoader__.load({
     // The active page lives in localStorage so a reload — or the hot reload the
     // upgrader triggers — comes back to the page the user was reading.
     const TAB_KEY = 'ofm.tab'
-    const TABS = ['free', 'eac', 'channels']
+    const TABS = ['channels']
 
     function Shell(props) {
       const { t, data, counts, summary, stats, eacAuth, setEacAuth, eacLogin, busy, setBusy, apply, bench, benches, ctx } = props
-      const [tab, setTab] = useState(() => {
-        try {
-          const saved = window.localStorage?.getItem(TAB_KEY)
-          return TABS.includes(saved) ? saved : 'free'
-        } catch { return 'free' }
-      })
+      const [tab, setTab] = useState(() => 'channels')
       const tabRefs = useRef({})
       const [glider, setGlider] = useState({ left: 0, top: 0, width: 0, height: 0 })
       useEffect(() => {
@@ -3617,12 +3600,7 @@ window.__ModuleLoader__.load({
       }
 
       const tabs = [
-        ['free', t('nav.tab.free'), counts.available ?? 0],
-        ['eac', t('nav.tab.eac'), data.catalog.filter(m => m.channel === 'eac').length],
-        ['channels', t('nav.tab.channels'), CHANNEL_PROVIDERS.length],
-        ['ledger', t('nav.tab.ledger'), null],
-        ['logs', t('nav.tab.logs'), null],
-        ['gateway', t('nav.tab.gateway'), null],
+        ['channels', 'Gemini 账号', CHANNEL_PROVIDERS.length],
       ]
       const nav = h('nav', { className: 'ofm_nav' },
         h('span', { className: 'ofm_navbrand' },
@@ -3853,7 +3831,233 @@ window.__ModuleLoader__.load({
       } catch { return 'en' }
     }
 
+
+    function initGeminiQuotaIndicator(ctx) {
+      if (typeof document === 'undefined') return;
+
+      const styleId = 'dsh-gemini-quota-style';
+      if (!document.getElementById(styleId)) {
+        const s = document.createElement('style');
+        s.id = styleId;
+        s.textContent = `
+          .dsh-gemini-quota-box{display:inline-flex;align-items:center;position:relative;height:28px;line-height:20px;font-size:13px;font-weight:400;color:var(--dsw-alias-label-caption,rgba(140,140,140,.85));white-space:nowrap;user-select:none;cursor:pointer;padding:0 4px;margin-right:4px;flex:none;transition:color .15s ease,opacity .2s cubic-bezier(.16,1,.3,1)}
+          .dsh-gemini-quota-box:hover{color:var(--dsw-alias-label-secondary,#d4d4d4)}
+          .dsh-gemini-quota-box.is-loading{opacity:.5}
+          .dsh-gemini-quota-card{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translate(-50%,6px);background:var(--dsw-alias-tooltip-bg,#272730);color:var(--dsw-alias-toast-label,#fff);padding:8px 12px;border-radius:6px;font-size:11px;line-height:1.6;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.14);pointer-events:none;z-index:99999;opacity:0;visibility:hidden;display:grid;grid-template-columns:auto auto auto;column-gap:8px;row-gap:3px;align-items:center;font-variant-numeric:tabular-nums;transition:opacity .15s cubic-bezier(.16,1,.3,1),transform .15s cubic-bezier(.16,1,.3,1),visibility .15s}
+          .dsh-gemini-quota-box:hover .dsh-gemini-quota-card{opacity:1;visibility:visible;transform:translate(-50%,0)}
+          .dsh-col-label{color:var(--dsw-alias-label-secondary,#c0c0c0);font-weight:500}
+          .dsh-col-val{color:var(--dsw-alias-label-primary,#fff);font-weight:500}
+          .dsh-col-reset{color:var(--dsw-alias-label-caption,#999)}
+          .dsh-val-warn{color:var(--dsw-alias-state-warn-label,#faad14)}
+          .dsh-acct-head{grid-column:span 3;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1px}
+          .dsh-acct-sep{grid-column:span 3;border-top:1px solid rgba(255,255,255,.1);margin:4px 0 2px}
+          .dsh-acct-name{font-weight:500;color:var(--dsw-alias-label-primary,#fff);max-width:220px;overflow:hidden;text-overflow:ellipsis}
+          .dsh-badge-primary{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(66,133,244,.25);color:#8ab4f8}
+          .dsh-badge-standby{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.08);color:var(--dsw-alias-label-caption,#999)}
+          .dsh-badge-warn{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(250,173,20,.2);color:#faad14}
+        `;
+        document.head.appendChild(s);
+      }
+
+      let quota = (() => {
+        try { return JSON.parse(sessionStorage.getItem('dsh_gemini_quota_cache')); } catch { return null; }
+      })();
+      let loading = false, lastFetch = 0, lastClick = 0, scheduled = false, rendering = false;
+
+      const fmtReset = (iso) => {
+        const t = new Date(iso).getTime();
+        if (isNaN(t)) return '';
+        const diff = Math.max(0, Math.floor((t - Date.now()) / 60000));
+        if (!diff) return '即将重置';
+        const h = Math.floor(diff / 60), d = Math.floor(h / 24);
+        return d ? `${d}天${h % 24 ? (h % 24) + '小时' : ''}后重置` : h ? `${h}小时${diff % 60}分后重置` : `${diff}分钟后重置`;
+      };
+
+      function buildCardHtml(q) {
+        if (!q) return '';
+        const accs = q.accounts?.length ? q.accounts : [{
+          nickname: q.primaryAccount || 'Gemini 账号',
+          isPrimary: true, fiveHour: q.fiveHour, weekly: q.weekly
+        }];
+
+        return accs.map((a, i) => {
+          const p5 = a.fiveHour ? `${a.fiveHour.percent}%` : (a.ok === false ? '不可用' : '—');
+          const pW = a.weekly ? `${a.weekly.percent}%` : (a.ok === false ? '不可用' : '—');
+          const r5 = a.fiveHour ? fmtReset(a.fiveHour.resetTime) : '';
+          const rW = a.weekly ? fmtReset(a.weekly.resetTime) : '';
+          const isLow = !!(a.fiveHour && a.fiveHour.percent < 20);
+          const badge = a.isPrimary
+            ? '<span class="dsh-badge-primary">使用中</span>'
+            : (a.isRateLimited ? '<span class="dsh-badge-warn">限流冷却</span>' : '<span class="dsh-badge-standby">备用</span>');
+
+          return `
+            ${i > 0 ? '<div class="dsh-acct-sep"></div>' : ''}
+            <div class="dsh-acct-head"><span class="dsh-acct-name" title="${a.nickname}">${a.nickname}</span>${badge}</div>
+            <span class="dsh-col-label">5小时配额：</span><span class="dsh-col-val ${isLow ? 'dsh-val-warn' : ''}">剩余 ${p5}</span><span class="dsh-col-reset">${r5 ? '（' + r5 + '）' : ''}</span>
+            <span class="dsh-col-label">周总配额：</span><span class="dsh-col-val">剩余 ${pW}</span><span class="dsh-col-reset">${rW ? '（' + rW + '）' : ''}</span>
+          `;
+        }).join('');
+      }
+
+      async function fetchQuota(force = false) {
+        if (loading) return;
+        const now = Date.now();
+        if (!force && quota && now - lastFetch < 5000) return;
+        loading = true;
+        const box = document.getElementById('dsh-gemini-quota-indicator');
+        if (force && box) box.classList.add('is-loading');
+        try {
+          const res = await window.fetch('/api/gemini-quota', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ force }),
+            signal: AbortSignal.timeout(4500)
+          });
+          const data = await res.json().catch(() => null);
+          if (data?.ok) {
+            quota = data;
+            lastFetch = Date.now();
+            try { sessionStorage.setItem('dsh_gemini_quota_cache', JSON.stringify(data)); } catch {}
+          } else if (data?.enabled === false) {
+            quota = null;
+            try { sessionStorage.removeItem('dsh_gemini_quota_cache'); } catch {}
+          }
+        } catch {} finally {
+          loading = false;
+          box?.classList.remove('is-loading');
+          render();
+        }
+      }
+
+      const findAnchor = () =>
+        document.querySelector('[data-slot="conversation.input.model"]') ||
+        document.querySelector('.conversation-input-model') ||
+        document.querySelector('[class*="ModelSelect_root"]') ||
+        document.querySelector('button[aria-haspopup="menu"][title*="·"]');
+
+      function getActiveSelection(el) {
+        try {
+          const target = el?.querySelector?.('button') || el;
+          const k = Object.keys(target || {}).find(x => x.startsWith('__reactFiber$'));
+          if (!k) return null;
+          let f = target[k];
+          while (f) {
+            const dir = f.memoizedProps?.directory;
+            if (dir?.getSnapshot) {
+              const s = dir.getSnapshot();
+              if (s?.current) return s.current;
+            }
+            const cur = f.memoizedState?.current || f.memoizedProps?.current;
+            if (cur?.provider) return cur;
+            f = f.return;
+          }
+        } catch {}
+        return null;
+      }
+
+      const isTargetGemini = (el) => {
+        if (!el) return false;
+        const sel = getActiveSelection(el);
+        if (sel) return sel.provider === 'gemini';
+        const txt = ((el.textContent || '') + ' ' + (el.getAttribute('title') || '') + ' ' + (el.getAttribute('aria-label') || '')).toLowerCase();
+        return (txt.includes('gemini') && txt.includes('3.8')) || (txt.includes('gemini') && !/\b(1\.5|2\.0|2\.5|custom|api|openai|gateway)\b/.test(txt));
+      };
+
+      function render() {
+        if (rendering) return;
+        rendering = true;
+        try {
+          const anchor = findAnchor();
+          let box = document.getElementById('dsh-gemini-quota-indicator');
+          if (!anchor) return box?.remove();
+          if (!isTargetGemini(anchor) || (quota && quota.enabled === false)) return box && (box.style.display = 'none');
+          if (!quota) {
+            if (box) box.style.display = 'none';
+            return fetchQuota();
+          }
+
+          const p5 = quota.fiveHour ? `${quota.fiveHour.percent}%` : '—';
+          const pW = quota.weekly ? `${quota.weekly.percent}%` : '—';
+          const cardHtml = buildCardHtml(quota);
+          const key = `${p5}_${pW}_${cardHtml.length}_${quota.primaryAccountId}`;
+
+          if (!box) {
+            box = document.createElement('div');
+            box.id = 'dsh-gemini-quota-indicator';
+            box.className = 'dsh-gemini-quota-box';
+            box.innerHTML = `
+              <span class="dsh-quota-txt">5h: ${p5} ｜ 周: ${pW}</span>
+              <div class="dsh-gemini-quota-card">${cardHtml}</div>`;
+            box.dataset.renderedKey = key;
+            box.onmouseenter = () => { if (Date.now() - lastFetch > 3000) fetchQuota(); };
+            box.onclick = async (e) => {
+              e.stopPropagation();
+              const now = Date.now();
+              if (now - lastClick < 2000) return;
+              lastClick = now;
+              await fetchQuota(true);
+            };
+            anchor.insertAdjacentElement('beforebegin', box);
+          } else {
+            if (box.style.display === 'none') box.style.display = 'inline-flex';
+            if (box.nextElementSibling !== anchor) anchor.insertAdjacentElement('beforebegin', box);
+
+            if (box.dataset.renderedKey !== key) {
+              box.dataset.renderedKey = key;
+              const txtEl = box.querySelector('.dsh-quota-txt');
+              if (txtEl) txtEl.textContent = `5h: ${p5} ｜ 周: ${pW}`;
+              const cardEl = box.querySelector('.dsh-gemini-quota-card');
+              if (cardEl) cardEl.innerHTML = cardHtml;
+            }
+          }
+        } catch {} finally {
+          rendering = false;
+        }
+      }
+
+      const schedule = () => {
+        if (scheduled) return;
+        scheduled = true;
+        setTimeout(() => { scheduled = false; render(); }, 30);
+      };
+
+      const observer = new MutationObserver(mutations => {
+        for (const m of mutations) {
+          if (!m.target?.closest?.('#dsh-gemini-quota-indicator')) {
+            schedule();
+            return;
+          }
+        }
+      });
+      observer.observe(document.body, {
+        childList: true, subtree: true, attributes: true,
+        attributeFilter: ['aria-label', 'title', 'class', 'data-slot']
+      });
+
+      const fastCheck = setInterval(() => {
+        if (document.hidden) return;
+        const box = document.getElementById('dsh-gemini-quota-indicator');
+        const anchor = findAnchor();
+        if (anchor && isTargetGemini(anchor) && (!box || !box.isConnected || box.nextElementSibling !== anchor)) {
+          render();
+        }
+      }, 400);
+
+      const poll = setInterval(() => { if (!document.hidden) fetchQuota(); }, 60000);
+      const onFocus = () => { if (Date.now() - lastFetch > 15000) fetchQuota(); };
+      window.addEventListener('focus', onFocus);
+      setTimeout(() => { render(); fetchQuota(); }, 50);
+
+      ctx?.on?.('dispose', () => {
+        clearInterval(fastCheck);
+        clearInterval(poll);
+        window.removeEventListener('focus', onFocus);
+        observer.disconnect();
+        document.getElementById('dsh-gemini-quota-indicator')?.remove();
+      });
+    }
     function apply(ctx) {
+      initGeminiQuotaIndicator(ctx)
       const t = ctx.locale.bind(NS)
       ctx.effect(() => ctx.locale.register(NS, { zh: DICT.zh, en: DICT.en }), 'our-free-model: dictionaries')
 
