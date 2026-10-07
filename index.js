@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fetchQuota } from './src/quota.js';
 
-export const name = 'our-free-model';
+export const name = 'dsh-gemini';
 export const inject = ['llm'];
 export const version = '2.0.0';
 

@@ -4232,7 +4232,7 @@ window.__ModuleLoader__.load({
     }
     exports.apply = apply
     exports.inject = inject
-    exports.name = 'our-free-model'
+    exports.name = 'dsh-gemini'
     // Headless test seams use the same stub React as scripts/client-lint.mjs.
     exports.__test = { parseSafeHtml, safeUrl, sanitizeStyle, htmlToDom, buildHeatCells, Heatmap, ChannelsPage, UpgradePanel, useEacLogin, EacAuth }
     return module.exports
