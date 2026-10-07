@@ -43,7 +43,8 @@ const record = globalThis.__registered
 if (record === undefined) {
   problems.push('the bundle never registered itself with the module loader')
 } else {
-  if (record.id !== 'dsh-our-free-model') problems.push(`registered id "${record.id}" must equal the package name`)
+  const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
+  if (record.id !== pkg.name) problems.push(`registered id "${record.id}" must equal the package name (${pkg.name})`)
   if (typeof record.factory !== 'function') problems.push('factory is not a function')
   else {
     const exports = record.factory(name => {
@@ -85,6 +86,7 @@ const INDIRECT = new Set([
   'state.available', 'state.region-blocked', 'state.throttled', 'state.unavailable', 'state.unknown',
   'ann.preamble', 'ann.models', 'ann.steps', 'ann.features', 'ann.updates',
   'level.info', 'level.update', 'level.warn', 'level.urgent',
+  'nav.tab.free', 'nav.tab.eac', 'nav.tab.channels', 'nav.tab.ledger', 'nav.tab.logs', 'nav.tab.gateway',
 ])
 
 for (const language of ['zh', 'en']) {
