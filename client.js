@@ -400,11 +400,17 @@ window.__ModuleLoader__.load({
 }
 
 /* Original DSH Chat Input Quota Box */
-.dsh-gemini-quota-box{display:inline-flex;align-items:center;position:relative;height:28px;line-height:20px;font-size:13px;font-weight:400;color:var(--dsw-alias-label-caption,rgba(140,140,140,.85));white-space:nowrap;user-select:none;cursor:pointer;padding:0 4px;margin-right:4px;flex:none;transition:color .15s ease,opacity .2s cubic-bezier(.16,1,.3,1)}
-.dsh-gemini-quota-box:hover{color:var(--dsw-alias-label-secondary,#d4d4d4)}
+.dsh-gemini-quota-box{display:inline-flex;align-items:center;position:relative;height:28px;line-height:20px;font-size:13px;font-weight:400;color:var(--dsw-alias-label-secondary,rgba(160,160,160,.9));white-space:nowrap;user-select:none;cursor:pointer;padding:0 6px 0 8px;margin-right:4px;gap:4px;border-radius:var(--dsw-radius-sm,6px);flex:none;transition:background .15s ease,color .15s ease,opacity .2s cubic-bezier(.16,1,.3,1)}
+.dsh-gemini-quota-box:hover:not(.is-loading){background:var(--dsw-alias-interactive-bg-hover,rgba(255,255,255,.08));color:var(--dsw-alias-label-primary,#fff)}
+.dsh-gemini-quota-box.is-open{background:var(--dsw-alias-interactive-bg-hover,rgba(255,255,255,.08));color:var(--dsw-alias-label-primary,#fff)}
 .dsh-gemini-quota-box.is-loading{opacity:.5}
-.dsh-gemini-quota-card{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translate(-50%,6px);background:var(--dsw-alias-tooltip-bg,#272730);color:var(--dsw-alias-toast-label,#fff);padding:8px 12px;border-radius:6px;font-size:11px;line-height:1.6;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.14);pointer-events:none;z-index:99999;opacity:0;visibility:hidden;display:grid;grid-template-columns:max-content max-content auto;column-gap:8px;row-gap:4px;align-items:baseline;font-variant-numeric:tabular-nums;transition:opacity .15s cubic-bezier(.16,1,.3,1),transform .15s cubic-bezier(.16,1,.3,1),visibility .15s}
-.dsh-gemini-quota-box:hover .dsh-gemini-quota-card{opacity:1;visibility:visible;transform:translate(-50%,0)}
+.dsh-quota-chevron{width:12px;height:12px;color:var(--dsw-alias-label-caption,#888);flex:none;transition:transform .18s cubic-bezier(.16,1,.3,1)}
+.dsh-gemini-quota-box.is-open .dsh-quota-chevron{transform:rotate(180deg);color:var(--dsw-alias-label-primary,#fff)}
+.dsh-gemini-quota-card{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translate(-50%,6px);background:var(--dsw-specific-menu,var(--dsw-menu-surface-fill,rgba(48,49,54,.94)));backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);color:var(--dsw-alias-label-primary,#fff);padding:10px 14px;border-radius:var(--dsw-radius-lg,10px);font-size:11px;line-height:1.6;white-space:nowrap;box-shadow:var(--dsw-elevation-prominent,0 10px 30px rgba(0,0,0,.45));border:1px solid var(--dsw-elevation-stroke-color,var(--dsw-alias-border-l1,rgba(255,255,255,.1)));pointer-events:none;z-index:99999;opacity:0;visibility:hidden;display:grid;grid-template-columns:max-content max-content auto;column-gap:8px;row-gap:4px;align-items:baseline;font-variant-numeric:tabular-nums;transition:opacity .15s cubic-bezier(.16,1,.3,1),transform .15s cubic-bezier(.16,1,.3,1),visibility .15s}
+.dsh-gemini-quota-box.is-open .dsh-gemini-quota-card{opacity:1;visibility:visible;transform:translate(-50%,0);pointer-events:auto}
+.dsh-card-refresh{cursor:pointer;opacity:.65;font-size:12px;display:inline-flex;align-items:center;padding:1px 3px;border-radius:3px;transition:opacity .15s ease,transform .15s ease}
+.dsh-card-refresh:hover{opacity:1;background:rgba(255,255,255,.1)}
+.dsh-card-refresh:active{transform:rotate(90deg)}
 .dsh-col-label{color:var(--dsw-alias-label-secondary,#c0c0c0);font-weight:500;white-space:nowrap;letter-spacing:0.2px}
 .dsh-col-val{color:var(--dsw-alias-label-primary,#fff);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
 .dsh-col-reset{color:var(--dsw-alias-label-caption,#999);white-space:nowrap}
@@ -823,7 +829,7 @@ window.__ModuleLoader__.load({
 
           return `
             ${i > 0 ? '<div class="dsh-acct-sep"></div>' : ''}
-            <div class="dsh-acct-head"><span class="dsh-acct-name" title="${a.nickname}">${a.nickname}</span>${badge}</div>
+            <div class="dsh-acct-head"><span class="dsh-acct-name" title="${a.nickname}">${a.nickname}</span><div style="display:flex;align-items:center;gap:6px">${badge}${a.isPrimary ? '<span class="dsh-card-refresh" title="强制刷新配额">⟳</span>' : ''}</div></div>
             <span class="dsh-col-label">5小时配额：</span><span class="dsh-col-val ${isLow ? 'dsh-val-warn' : ''}">剩余 ${p5}</span><span class="dsh-col-reset">${r5 ? '（' + r5 + '）' : ''}</span>
             <span class="dsh-col-label">每星期配额：</span><span class="dsh-col-val">剩余 ${pW}</span><span class="dsh-col-reset">${rW ? '（' + rW + '）' : ''}</span>
           `
@@ -917,17 +923,32 @@ window.__ModuleLoader__.load({
             box = document.createElement('div')
             box.id = 'dsh-gemini-quota-indicator'
             box.className = 'dsh-gemini-quota-box'
+            box.setAttribute('role', 'button')
+            box.setAttribute('aria-haspopup', 'menu')
+            box.setAttribute('aria-expanded', 'false')
             box.innerHTML = `
               <span class="dsh-quota-txt">5h: ${p5} ｜ 周: ${pW}</span>
+              <svg class="dsh-quota-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>
               <div class="dsh-gemini-quota-card">${cardHtml}</div>`
             box.dataset.renderedKey = key
-            // Purely reveal card via CSS on hover - 0 network overhead
             box.onclick = async (e) => {
+              if (e.target?.closest?.('.dsh-card-refresh')) {
+                e.stopPropagation()
+                await fetchQuota(true)
+                return
+              }
+              if (e.target?.closest?.('.dsh-gemini-quota-card')) {
+                e.stopPropagation()
+                return
+              }
               e.stopPropagation()
-              const now = Date.now()
-              if (now - lastClick < 2000) return
-              lastClick = now
-              await fetchQuota(true)
+              const willOpen = !box.classList.contains('is-open')
+              box.classList.toggle('is-open', willOpen)
+              box.setAttribute('aria-expanded', String(willOpen))
+              if (willOpen) {
+                const now = Date.now()
+                if (now - lastFetch > 10000) fetchQuota()
+              }
             }
             anchor.insertAdjacentElement('beforebegin', box)
           } else {
@@ -939,7 +960,16 @@ window.__ModuleLoader__.load({
               const txtEl = box.querySelector('.dsh-quota-txt')
               if (txtEl) txtEl.textContent = `5h: ${p5} ｜ 周: ${pW}`
               const cardEl = box.querySelector('.dsh-gemini-quota-card')
-              if (cardEl) cardEl.innerHTML = cardHtml
+              if (cardEl) {
+                cardEl.innerHTML = cardHtml
+                const refBtn = cardEl.querySelector('.dsh-card-refresh')
+                if (refBtn) {
+                  refBtn.onclick = async (ev) => {
+                    ev.stopPropagation()
+                    await fetchQuota(true)
+                  }
+                }
+              }
             }
           }
         } catch {} finally {
@@ -979,6 +1009,25 @@ window.__ModuleLoader__.load({
       const onFocus = () => { if (Date.now() - lastFetch > 30000) fetchQuota(); }
       window.addEventListener('focus', onFocus)
       window.addEventListener('dsh-gemini-quota-sync', () => { fetchQuota(true); })
+
+      // Click outside and Escape handlers to close popover
+      document.addEventListener('pointerdown', (e) => {
+        const box = document.getElementById('dsh-gemini-quota-indicator')
+        if (box && box.classList.contains('is-open') && !box.contains(e.target)) {
+          box.classList.remove('is-open')
+          box.setAttribute('aria-expanded', 'false')
+        }
+      })
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          const box = document.getElementById('dsh-gemini-quota-indicator')
+          if (box && box.classList.contains('is-open')) {
+            box.classList.remove('is-open')
+            box.setAttribute('aria-expanded', 'false')
+          }
+        }
+      })
+
       setTimeout(() => { render(); fetchQuota(); }, 50)
     }
 
