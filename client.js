@@ -22,8 +22,8 @@ window.__ModuleLoader__.load({
     // ── dictionary coverage ───────────────────────────────────────────────────
     const DICT = {
       zh: {
-        nav: 'Gemini 引擎',
-        title: 'Gemini enter',
+        nav: 'Gemini Engine',
+        title: 'Gemini Engine',
         statusOk: '运行正常',
         stealthActive: '设备特征指纹已隔离',
         fetchModels: '获取最新模型',
@@ -58,7 +58,7 @@ window.__ModuleLoader__.load({
       },
       en: {
         nav: 'Gemini Engine',
-        title: 'Gemini enter',
+        title: 'Gemini Engine',
         statusOk: 'Normal',
         stealthActive: 'Hardware Fingerprint Isolated',
         fetchModels: 'Fetch Models',
