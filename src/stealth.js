@@ -109,3 +109,11 @@ export function getIdentityHeaderObject(token = null) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
   return headers;
 }
+
+/**
+ * Asynchronously sleeps with bounded randomized jitter to avoid thundering herd and retry spikes
+ */
+export function sleepWithJitter(baseMs = 1000, jitterMs = 500) {
+  const delay = baseMs + Math.floor(Math.random() * jitterMs);
+  return new Promise(resolve => setTimeout(resolve, delay));
+}

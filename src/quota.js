@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { getIdentityHeaderObject } from './stealth.js';
+import { getIdentityHeaderObject, sleepWithJitter } from './stealth.js';
 
 const STATE = path.join(os.homedir(), '.dsh/channel-pack/state.json');
 const CRED_CANDIDATES = [
@@ -17,6 +17,20 @@ const MODELS_URL = 'https://cloudcode-pa.googleapis.com/v1internal:fetchAvailabl
 let cache = null;
 let lastFetch = 0;
 let inFlight = null;
+const refreshInFlight = new Map();
+const accountCooldowns = new Map();
+
+export function isAccountInCooldown(accountId) {
+  const cd = accountCooldowns.get(accountId);
+  if (!cd) return false;
+  if (Date.now() < cd) return true;
+  accountCooldowns.delete(accountId);
+  return false;
+}
+
+export function setAccountCooldown(accountId, cooldownMs = 60000) {
+  accountCooldowns.set(accountId, Date.now() + cooldownMs);
+}
 
 export const DEFAULT_MODELS = [
   {
@@ -67,6 +81,21 @@ export const getAccounts = () => {
   } catch { return []; }
 };
 
+export const getCredential = (ref) => {
+  for (const credPath of CRED_CANDIDATES) {
+    try {
+      if (!fs.existsSync(credPath)) continue;
+      const txt = fs.readFileSync(credPath, 'utf8');
+      const m = txt.match(new RegExp(`${ref}:\\s*['"]?({.+?})['"]?\\s*$`, 'm')) || txt.match(new RegExp(`${ref}:\\s*['"]?({.*?})['"]?`, 's'));
+      if (m) {
+        const parsed = JSON.parse(m[1].replace(/\n/g, ' '));
+        if (parsed) return parsed;
+      }
+    } catch {}
+  }
+  return null;
+};
+
 export const getToken = (ref) => {
   for (const credPath of CRED_CANDIDATES) {
     try {
@@ -83,49 +112,63 @@ export const getToken = (ref) => {
 };
 
 
-export async function refreshTokenForRef(ref) {
-  for (const credPath of CRED_CANDIDATES) {
-    try {
-      if (!fs.existsSync(credPath)) continue;
-      const txt = fs.readFileSync(credPath, "utf8");
-      const m = txt.match(new RegExp(`(${ref}:\\s*['"]?)({.+?})(['"]?\\s*$)`, "m")) || txt.match(new RegExp(`(${ref}:\\s*['"]?)({.*?})(['"]?)`, "s"));
-      if (m) {
-        const parsed = JSON.parse(m[2].replace(/\n/g, " "));
-        if (!parsed?.refresh_token) return null;
-        const res = await fetch("https://oauth2.googleapis.com/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            client_id: "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com",
-            client_secret: "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",
-            refresh_token: parsed.refresh_token,
-            grant_type: "refresh_token"
-          }),
-          signal: AbortSignal.timeout(6000)
-        });
-        if (!res.ok) return null;
-        const data = await res.json();
-        if (data?.access_token) {
-          parsed.access_token = data.access_token;
-          if (data.expires_in) parsed.expiry = new Date(Date.now() + data.expires_in * 1000).toISOString();
-          const updated = `${m[1]}${JSON.stringify(parsed)}${m[3]}`;
-          fs.writeFileSync(credPath, txt.replace(m[0], updated), "utf8");
-          return data.access_token;
-        }
-      }
-    } catch {}
+export function refreshTokenForRef(ref) {
+  if (refreshInFlight.has(ref)) {
+    return refreshInFlight.get(ref);
   }
-  return null;
+
+  const promise = (async () => {
+    for (const credPath of CRED_CANDIDATES) {
+      try {
+        if (!fs.existsSync(credPath)) continue;
+        const txt = fs.readFileSync(credPath, "utf8");
+        const m = txt.match(new RegExp(`(${ref}:\\s*['"]?)({.+?})(['"]?\\s*$)`, "m")) || txt.match(new RegExp(`(${ref}:\\s*['"]?)({.*?})(['"]?)`, "s"));
+        if (m) {
+          const parsed = JSON.parse(m[2].replace(/\n/g, " "));
+          if (!parsed?.refresh_token) return null;
+          const res = await fetch("https://oauth2.googleapis.com/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              client_id: "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com",
+              client_secret: "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",
+              refresh_token: parsed.refresh_token,
+              grant_type: "refresh_token"
+            }),
+            signal: AbortSignal.timeout(8000)
+          });
+          if (!res.ok) return null;
+          const data = await res.json();
+          if (data?.access_token) {
+            parsed.access_token = data.access_token;
+            if (data.expires_in) parsed.expiry = new Date(Date.now() + data.expires_in * 1000).toISOString();
+            const updated = `${m[1]}${JSON.stringify(parsed)}${m[3]}`;
+            fs.writeFileSync(credPath, txt.replace(m[0], updated), "utf8");
+            return data.access_token;
+          }
+        }
+      } catch {}
+    }
+    return null;
+  })().finally(() => {
+    refreshInFlight.delete(ref);
+  });
+
+  refreshInFlight.set(ref, promise);
+  return promise;
 }
 
-export async function fetchOne(token) {
+export async function fetchOne(token, project = 'aicode-consumers') {
   try {
     const res = await fetch(QUOTA_URL, {
       method: 'POST',
       headers: getIdentityHeaderObject(token),
-      body: JSON.stringify({ project: 'aicode-consumers' }),
+      body: JSON.stringify({ project: project || 'aicode-consumers' }),
       signal: AbortSignal.timeout(8000)
     });
+    if (res.status === 429) {
+      return { ok: false, error: 'HTTP 429', rateLimited: true };
+    }
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
     const data = await res.json();
     const b = (data?.groups || []).flatMap(g => g?.buckets || []);
@@ -269,36 +312,69 @@ export async function fetchQuota(force = false) {
 
   inFlight = (async () => {
     try {
-      const settled = await Promise.allSettled(accounts.map(async (a, index) => {
-        let token = getToken(a.credentialRef);
-        if (!token) {
-          return { id: a.id, nickname: maskEmail(a.nickname), enabled: true, isPrimary: index === 0, ok: false, error: 'no_token' };
+      const list = [];
+      for (let i = 0; i < accounts.length; i++) {
+        const a = accounts[i];
+        if (i > 0) {
+          // Staggered pacing: 350ms average delay between accounts to eliminate burst spikes
+          await sleepWithJitter(300, 100);
         }
-        let q = await fetchOne(token);
+
+        // Check 429 in-memory circuit breaker
+        if (!force && isAccountInCooldown(a.id)) {
+          const prevAcc = cache?.accounts?.find(acc => acc.id === a.id);
+          list.push(prevAcc || {
+            id: a.id,
+            nickname: maskEmail(a.nickname),
+            enabled: true,
+            isPrimary: i === 0,
+            ok: false,
+            error: '429 冷却中 (60s)'
+          });
+          continue;
+        }
+
+        const cred = getCredential(a.credentialRef);
+        let token = cred?.access_token || getToken(a.credentialRef);
+        if (!token) {
+          list.push({ id: a.id, nickname: maskEmail(a.nickname), enabled: true, isPrimary: i === 0, ok: false, error: 'no_token' });
+          continue;
+        }
+
+        // Pre-emptive expiration check (180s buffer)
+        if (cred?.expiry) {
+          const expiresAt = Date.parse(cred.expiry);
+          if (Number.isFinite(expiresAt) && expiresAt - Date.now() < 180000) {
+            const fresh = await refreshTokenForRef(a.credentialRef);
+            if (fresh) token = fresh;
+          }
+        }
+
+        // Dynamic project resolution: respect detected companion project or safely fallback
+        const targetProject = a.cloudaicompanionProject || cred?.cloudaicompanionProject || 'aicode-consumers';
+        let q = await fetchOne(token, targetProject);
+
         if (q.error === 'HTTP 401') {
           const fresh = await refreshTokenForRef(a.credentialRef);
-          if (fresh) q = await fetchOne(fresh);
+          if (fresh) {
+            token = fresh;
+            q = await fetchOne(fresh, targetProject);
+          }
+        } else if (q.rateLimited || q.error === 'HTTP 429') {
+          setAccountCooldown(a.id, 60000);
         }
-        return {
+
+        list.push({
           id: a.id,
           nickname: maskEmail(a.nickname),
           enabled: true,
-          isPrimary: index === 0,
+          isPrimary: i === 0,
           ok: q.ok,
           fiveHour: q.fiveHour,
           weekly: q.weekly,
           error: q.error
-        };
-      }));
-
-      const list = settled.map((r, i) => r.status === 'fulfilled' ? r.value : {
-        id: accounts[i].id,
-        nickname: maskEmail(accounts[i].nickname),
-        enabled: true,
-        isPrimary: i === 0,
-        ok: false,
-        error: r.reason?.message || 'timeout'
-      });
+        });
+      }
 
       const primary = list.find(a => a.isPrimary) || list[0];
       lastFetch = Date.now();

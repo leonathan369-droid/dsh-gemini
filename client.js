@@ -930,7 +930,7 @@ window.__ModuleLoader__.load({
               <span class="dsh-quota-txt">5h: ${p5} ｜ 周: ${pW}</span>
               <div class="dsh-gemini-quota-card">${cardHtml}</div>`
             box.dataset.renderedKey = key
-            box.onmouseenter = () => { if (Date.now() - lastFetch > 3000) fetchQuota(); }
+            // Purely reveal card via CSS on hover - 0 network overhead
             box.onclick = async (e) => {
               e.stopPropagation()
               const now = Date.now()
@@ -985,7 +985,7 @@ window.__ModuleLoader__.load({
       }, 400)
 
       const poll = setInterval(() => { if (!document.hidden) fetchQuota(); }, 60000)
-      const onFocus = () => { if (Date.now() - lastFetch > 15000) fetchQuota(); }
+      const onFocus = () => { if (Date.now() - lastFetch > 30000) fetchQuota(); }
       window.addEventListener('focus', onFocus)
       setTimeout(() => { render(); fetchQuota(); }, 50)
     }
