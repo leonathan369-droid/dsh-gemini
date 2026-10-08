@@ -4,7 +4,7 @@
  *   - Google Cloud Code PA Dynamic Model Discovery
  *   - Hardware Hash & Session Anti-Fingerprint Stealth
  *   - Real-time 5h / Weekly Dual Quota Synchronization
- *   - Multi-Account Auto-Failover & Auto Token Renewal
+ *   - Multi-Account Auto-Failover & Account Add / Toggle Management
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,6 +14,9 @@ import {
   saveCachedModels,
   fetchRemoteAvailableModels,
   getAccounts,
+  getRawAccounts,
+  toggleAccount,
+  persistAddedAccount,
   getToken,
   fetchOne
 } from './src/quota.js';
@@ -25,6 +28,7 @@ export const version = '2.0.0';
 
 export function apply(ctx, config = {}) {
   const logger = ctx.logger ?? console;
+  let channelPackModule = null;
 
   // 1. Mount Gemini Channel Pack (AccountPool, GeminiAuth, GeminiAdapter, RPC)
   ctx.inject(['credentials', 'commands', 'llm'], scoped => {
@@ -33,6 +37,7 @@ export function apply(ctx, config = {}) {
 
     void import('./vendor/channel-pack/pack.js').then(pack => {
       if (stopped) return;
+      channelPackModule = pack;
       pack.apply(scoped);
       logger.info?.('dsh-gemini: Gemini channel pack mounted successfully');
     }).catch(error => {
@@ -103,6 +108,49 @@ export function apply(ctx, config = {}) {
           }
         }
 
+        // Account management: List all raw accounts (including disabled)
+        if (p === '/accounts' || p === '/accounts/') {
+          const accounts = getRawAccounts();
+          return res.end(JSON.stringify({ ok: true, accounts }));
+        }
+
+        // Account management: Toggle account enabled/disabled
+        if (p === '/account/toggle' || p === '/account/toggle/') {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', () => {
+            try {
+              const parsed = JSON.parse(body || '{}');
+              const { id, enabled } = parsed;
+              const result = toggleAccount(id, enabled);
+              res.end(JSON.stringify({ ...result, accounts: getRawAccounts() }));
+            } catch (err) {
+              res.writeHead(400);
+              res.end(JSON.stringify({ ok: false, error: err.message }));
+            }
+          });
+          return;
+        }
+
+        // Account management: Add account via Google OAuth flow
+        if (p === '/account/add' || p === '/account/add/') {
+          try {
+            if (!channelPackModule?.startGeminiOAuthFlow) {
+              return res.end(JSON.stringify({ ok: false, error: 'OAuth engine not initialized yet' }));
+            }
+            const started = await channelPackModule.startGeminiOAuthFlow();
+            started.result.then(async credential => {
+              persistAddedAccount(credential);
+              logger.info?.('[dsh-gemini] Google OAuth account added successfully');
+            }).catch(err => {
+              logger.warn?.(`[dsh-gemini] Google OAuth failed: ${err?.message || err}`);
+            });
+            return res.end(JSON.stringify({ ok: true, loginUrl: started.loginUrl }));
+          } catch (err) {
+            return res.end(JSON.stringify({ ok: false, error: err.message }));
+          }
+        }
+
         // Ping / Latency test
         if (p === '/ping' || p === '/ping/') {
           const start = Date.now();
@@ -133,7 +181,7 @@ export function apply(ctx, config = {}) {
 
         // General status
         if (p === '/state' || p === '/state/') {
-          const accounts = getAccounts();
+          const accounts = getRawAccounts();
           const models = getCachedModels();
           return res.end(JSON.stringify({
             ok: true,

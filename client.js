@@ -4,8 +4,9 @@
  * DeepSeek Harness Native UI Integration:
  * - Dynamic Model Discovery with Live PA Fetch
  * - Dual-Quota Ring & Gauge Monitoring
+ * - Multi-Account Enable / Disable Management & Google OAuth Login
  * - Hardware Hash & Anti-Fingerprint Diagnostics
- * - Chat Input Floating Quota Indicator
+ * - Original DSH Chat Input Quota Box & Tooltip
  */
 window.__ModuleLoader__.load({
   id: 'dsh-gemini',
@@ -32,14 +33,24 @@ window.__ModuleLoader__.load({
         pingTesting: '测试中…',
         pingSuccess: '延迟',
         refreshQuota: '刷新配额',
+        refreshing: '正在刷新…',
+        refreshed: '已更新',
+        addAccount: '添加账号',
+        addingAccount: '正在调起…',
         quota5h: '5小时配额',
         quotaWeekly: '周总配额',
         resetAt: '重置于',
-        accountActive: '主用账号',
+        accountTitle: '账号管理',
+        accountActive: '主用',
+        accountStandby: '备用',
+        accountDisabled: '已停用',
+        enableAccount: '启用',
+        disableAccount: '停用',
         modelRoster: '可用模型清单',
         modelCount: '已发现可用模型',
-        modelThinking: '思考模式',
+        modelThinking: '深度思考',
         modelVision: '多模态视觉',
+        modelRecommended: '官方推荐',
         stealthTitle: '隐蔽指纹防护',
         machineId: '机器指纹',
         sessionId: '会话识别',
@@ -56,14 +67,24 @@ window.__ModuleLoader__.load({
         pingTesting: 'Pinging…',
         pingSuccess: 'Latency',
         refreshQuota: 'Refresh Quota',
+        refreshing: 'Refreshing…',
+        refreshed: 'Updated',
+        addAccount: 'Add Account',
+        addingAccount: 'Connecting…',
         quota5h: '5-Hour Quota',
         quotaWeekly: 'Weekly Quota',
         resetAt: 'Resets at',
+        accountTitle: 'Account Management',
         accountActive: 'Primary',
+        accountStandby: 'Standby',
+        accountDisabled: 'Disabled',
+        enableAccount: 'Enable',
+        disableAccount: 'Disable',
         modelRoster: 'Available Models',
         modelCount: 'Available models discovered',
         modelThinking: 'Thinking',
         modelVision: 'Vision',
+        modelRecommended: 'Recommended',
         stealthTitle: 'Stealth Fingerprint Protection',
         machineId: 'Machine ID',
         sessionId: 'Session ID',
@@ -127,6 +148,11 @@ window.__ModuleLoader__.load({
   border-color: rgba(16, 185, 129, 0.25);
   color: #34d399;
 }
+.ofm_badge_disabled {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--dsw-alias-label-tertiary, #777777);
+}
 .ofm_actions {
   display: flex;
   align-items: center;
@@ -152,14 +178,34 @@ window.__ModuleLoader__.load({
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
+.ofm_btn_primary:hover:not(:disabled) {
+  opacity: 0.92;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+}
 .ofm_btn_secondary {
   background: var(--dsw-alias-bg-layer-2, rgba(255, 255, 255, 0.05));
   color: var(--dsw-alias-label-primary, #e0e0e0);
   border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.12));
 }
+.ofm_btn_secondary:hover:not(:disabled) {
+  background: var(--dsw-alias-bg-layer-3, rgba(255, 255, 255, 0.1));
+  border-color: var(--dsw-alias-border-l2, rgba(255, 255, 255, 0.2));
+}
+.ofm_btn_success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
 .ofm_btn_icon {
   font-size: 13px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ofm_btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .ofm_grid_dual {
   display: grid;
@@ -223,27 +269,39 @@ window.__ModuleLoader__.load({
 .ofm_gauge_reset {
   color: var(--dsw-alias-label-tertiary, #757575);
 }
+.ofm_account_section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ofm_account_list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .ofm_account_item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 10px;
+  padding: 10px 14px;
   border-radius: 6px;
   background: var(--dsw-alias-bg-layer-2, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.06));
+}
+.ofm_account_meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .ofm_account_name {
   font-size: 13px;
   font-family: monospace;
   color: var(--dsw-alias-label-primary, #e0e0e0);
 }
-.ofm_account_tag {
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-  font-weight: 500;
+.ofm_account_actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .ofm_models_section {
   display: flex;
@@ -302,35 +360,6 @@ window.__ModuleLoader__.load({
   background: var(--dsw-alias-bg-layer-3, rgba(255, 255, 255, 0.08));
   color: var(--dsw-alias-label-secondary, #b0b0b0);
 }
-.ofm_effort_row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.08));
-}
-.ofm_effort_label {
-  font-size: 11px;
-  color: var(--dsw-alias-label-secondary, #9e9e9e);
-}
-.ofm_effort_pills {
-  display: flex;
-  gap: 4px;
-}
-.ofm_effort_pill {
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 10px;
-  background: var(--dsw-alias-bg-layer-2, rgba(255, 255, 255, 0.05));
-  border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.1));
-  color: var(--dsw-alias-label-secondary, #a0a0a0);
-}
-.ofm_effort_pill_active {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: #3b82f6;
-  color: #93c5fd;
-  font-weight: 600;
-}
 .ofm_stealth_section {
   display: flex;
   flex-direction: column;
@@ -358,56 +387,29 @@ window.__ModuleLoader__.load({
   font-family: monospace;
   color: var(--dsw-alias-label-primary, #cccccc);
 }
-.ofm_spinner {
-  display: inline-block;
-  animation: ofmspin 1s linear infinite;
+.ofm_svg_spin {
+  animation: ofmspin 0.75s linear infinite;
 }
 @keyframes ofmspin {
   100% { transform: rotate(360deg); }
 }
-.ofm_input_quota_box {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  background: var(--dsw-alias-bg-layer-2, rgba(255, 255, 255, 0.08));
-  border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.12));
-  color: var(--dsw-alias-label-primary, #dddddd);
-  user-select: none;
-  position: relative;
-  transition: all 0.15s ease;
-}
-.ofm_input_quota_box:hover {
-  background: var(--dsw-alias-bg-layer-3, rgba(255, 255, 255, 0.15));
-  border-color: var(--dsw-alias-border-l2, rgba(255, 255, 255, 0.25));
-}
-.ofm_input_quota_txt {
-  line-height: 1;
-}
-.ofm_input_quota_popup {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  min-width: 220px;
-  padding: 10px 12px;
-  border-radius: 6px;
-  background: var(--dsw-alias-bg-layer-1, #1e1e24);
-  border: 1px solid var(--dsw-alias-border-l2, rgba(255, 255, 255, 0.2));
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  font-size: 11px;
-  line-height: 1.5;
-  display: none;
-  z-index: 99999;
-}
-.ofm_input_quota_box:hover .ofm_input_quota_popup,
-.ofm_input_quota_box:focus-within .ofm_input_quota_popup {
-  display: block;
-}
+
+/* Original DSH Chat Input Quota Box */
+.dsh-gemini-quota-box{display:inline-flex;align-items:center;position:relative;height:28px;line-height:20px;font-size:13px;font-weight:400;color:var(--dsw-alias-label-caption,rgba(140,140,140,.85));white-space:nowrap;user-select:none;cursor:pointer;padding:0 4px;margin-right:4px;flex:none;transition:color .15s ease,opacity .2s cubic-bezier(.16,1,.3,1)}
+.dsh-gemini-quota-box:hover{color:var(--dsw-alias-label-secondary,#d4d4d4)}
+.dsh-gemini-quota-box.is-loading{opacity:.5}
+.dsh-gemini-quota-card{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translate(-50%,6px);background:var(--dsw-alias-tooltip-bg,#272730);color:var(--dsw-alias-toast-label,#fff);padding:8px 12px;border-radius:6px;font-size:11px;line-height:1.6;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.14);pointer-events:none;z-index:99999;opacity:0;visibility:hidden;display:grid;grid-template-columns:auto auto auto;column-gap:8px;row-gap:3px;align-items:center;font-variant-numeric:tabular-nums;transition:opacity .15s cubic-bezier(.16,1,.3,1),transform .15s cubic-bezier(.16,1,.3,1),visibility .15s}
+.dsh-gemini-quota-box:hover .dsh-gemini-quota-card{opacity:1;visibility:visible;transform:translate(-50%,0)}
+.dsh-col-label{color:var(--dsw-alias-label-secondary,#c0c0c0);font-weight:500}
+.dsh-col-val{color:var(--dsw-alias-label-primary,#fff);font-weight:500}
+.dsh-col-reset{color:var(--dsw-alias-label-caption,#999)}
+.dsh-val-warn{color:var(--dsw-alias-state-warn-label,#faad14)}
+.dsh-acct-head{grid-column:span 3;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1px}
+.dsh-acct-sep{grid-column:span 3;border-top:1px solid rgba(255,255,255,.1);margin:4px 0 2px}
+.dsh-acct-name{font-weight:500;color:var(--dsw-alias-label-primary,#fff);max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.dsh-badge-primary{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(66,133,244,.25);color:#8ab4f8}
+.dsh-badge-standby{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.08);color:var(--dsw-alias-label-caption,#999)}
+.dsh-badge-warn{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(250,173,20,.2);color:#faad14}
 `
 
     function ensureStyles() {
@@ -417,6 +419,26 @@ window.__ModuleLoader__.load({
       s.id = 'dsh-gemini-style'
       s.textContent = CSS
       document.head.appendChild(s)
+    }
+
+    // ── Spinner SVG Helper ───────────────────────────────────────────────────
+    function renderSpinner() {
+      return h('svg', {
+        className: 'ofm_svg_spin',
+        viewBox: '0 0 16 16',
+        width: 14,
+        height: 14,
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeWidth: 2
+      }, h('circle', {
+        cx: 8,
+        cy: 8,
+        r: 6,
+        strokeDasharray: 28,
+        strokeDashoffset: 10,
+        strokeLinecap: 'round'
+      }))
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
@@ -444,10 +466,14 @@ window.__ModuleLoader__.load({
 
       const [quota, setQuota] = useState(null)
       const [models, setModels] = useState([])
+      const [accounts, setAccounts] = useState([])
       const [stealth, setStealth] = useState(null)
       const [fetching, setFetching] = useState(false)
       const [pingMs, setPingMs] = useState(null)
       const [pinging, setPinging] = useState(false)
+      const [refreshing, setRefreshing] = useState(false)
+      const [justRefreshed, setJustRefreshed] = useState(false)
+      const [addingAccount, setAddingAccount] = useState(false)
 
       const loadQuota = useCallback(async (force = false) => {
         try {
@@ -468,6 +494,14 @@ window.__ModuleLoader__.load({
         } catch {}
       }, [])
 
+      const loadAccounts = useCallback(async () => {
+        try {
+          const res = await window.fetch('/api/gemini/accounts')
+          const data = await res.json()
+          if (data?.ok && Array.isArray(data.accounts)) setAccounts(data.accounts)
+        } catch {}
+      }, [])
+
       const loadStealth = useCallback(async () => {
         try {
           const res = await window.fetch('/api/gemini/stealth')
@@ -480,8 +514,9 @@ window.__ModuleLoader__.load({
         ensureStyles()
         loadQuota()
         loadModels()
+        loadAccounts()
         loadStealth()
-      }, [loadQuota, loadModels, loadStealth])
+      }, [loadQuota, loadModels, loadAccounts, loadStealth])
 
       const handleFetchModels = async () => {
         if (fetching) return
@@ -509,6 +544,51 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const handleRefreshQuota = async () => {
+        if (refreshing) return
+        setRefreshing(true)
+        try {
+          await loadQuota(true)
+          setJustRefreshed(true)
+          setTimeout(() => setJustRefreshed(false), 1400)
+        } finally {
+          setRefreshing(false)
+        }
+      }
+
+      const handleAddAccount = async () => {
+        if (addingAccount) return
+        setAddingAccount(true)
+        try {
+          const res = await window.fetch('/api/gemini/account/add', { method: 'POST' })
+          const data = await res.json()
+          if (data?.loginUrl) {
+            window.open(data.loginUrl, '_blank')
+            // Poll accounts to notice once login completes
+            const interval = setInterval(async () => {
+              await loadAccounts()
+              await loadQuota(true)
+            }, 3000)
+            setTimeout(() => clearInterval(interval), 60000)
+          }
+        } catch {} finally {
+          setAddingAccount(false)
+        }
+      }
+
+      const handleToggleAccount = async (id, enabled) => {
+        try {
+          const res = await window.fetch('/api/gemini/account/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, enabled })
+          })
+          const data = await res.json()
+          if (data?.accounts) setAccounts(data.accounts)
+          await loadQuota(true)
+        } catch {}
+      }
+
       const p5 = quota?.fiveHour?.percent ?? 0
       const pW = quota?.weekly?.percent ?? 0
       const r5 = formatReset(quota?.fiveHour?.resetTime)
@@ -526,33 +606,46 @@ window.__ModuleLoader__.load({
             )
           ),
           h('div', { className: 'ofm_actions' },
+            // Add Account Button
             h('button', {
               className: 'ofm_btn ofm_btn_primary',
+              disabled: addingAccount,
+              onClick: handleAddAccount
+            },
+              addingAccount ? renderSpinner() : h('span', { className: 'ofm_btn_icon' }, '+'),
+              addingAccount ? t('addingAccount') : t('addAccount')
+            ),
+            // Fetch Models Button
+            h('button', {
+              className: 'ofm_btn ofm_btn_secondary',
               disabled: fetching,
               onClick: handleFetchModels
             },
-              h('span', { className: fetching ? 'ofm_btn_icon ofm_spinner' : 'ofm_btn_icon' }, '⟳'),
+              fetching ? renderSpinner() : h('span', { className: 'ofm_btn_icon' }, '⟳'),
               fetching ? t('fetchingModels') : t('fetchModels')
             ),
+            // Ping Latency Button
             h('button', {
               className: 'ofm_btn ofm_btn_secondary',
               disabled: pinging,
               onClick: handlePing
             },
-              h('span', { className: pinging ? 'ofm_btn_icon ofm_spinner' : 'ofm_btn_icon' }, '⚡'),
+              pinging ? renderSpinner() : h('span', { className: 'ofm_btn_icon' }, '⚡'),
               pinging ? t('pingTesting') : (pingMs !== null ? `${t('pingSuccess')} ${pingMs}ms` : t('pingTest'))
             ),
+            // Refresh Quota Button
             h('button', {
-              className: 'ofm_btn ofm_btn_secondary',
-              onClick: () => loadQuota(true)
+              className: justRefreshed ? 'ofm_btn ofm_btn_success' : 'ofm_btn ofm_btn_secondary',
+              disabled: refreshing,
+              onClick: handleRefreshQuota
             },
-              h('span', { className: 'ofm_btn_icon' }, '↺'),
-              t('refreshQuota')
+              refreshing ? renderSpinner() : (justRefreshed ? h('span', { className: 'ofm_btn_icon' }, '✓') : h('span', { className: 'ofm_btn_icon' }, '↺')),
+              refreshing ? t('refreshing') : (justRefreshed ? t('refreshed') : t('refreshQuota'))
             )
           )
         ),
 
-        // Dual Quota Gauges & Primary Account
+        // Dual Quota Gauges
         h('div', { className: 'ofm_grid_dual' },
           // 5-Hour Quota Card
           h('div', { className: 'ofm_card' },
@@ -591,19 +684,31 @@ window.__ModuleLoader__.load({
           )
         ),
 
-        // Primary Account Status
-        quota?.primaryAccount ? h('div', { className: 'ofm_card' },
-          h('div', { className: 'ofm_card_title' },
-            '账号配置',
-            h('span', { className: 'ofm_badge ofm_badge_success' }, t('statusOk'))
-          ),
-          h('div', { className: 'ofm_account_item' },
-            h('span', { className: 'ofm_account_name' }, quota.primaryAccount),
-            h('span', { className: 'ofm_account_tag' }, t('accountActive'))
+        // Account Management List
+        h('div', { className: 'ofm_account_section' },
+          h('h3', { className: 'ofm_title' }, t('accountTitle')),
+          h('div', { className: 'ofm_account_list' },
+            accounts.map((a, idx) => {
+              const isPrimary = a.id === quota?.primaryAccountId || idx === 0
+              return h('div', { key: a.id, className: 'ofm_account_item' },
+                h('div', { className: 'ofm_account_meta' },
+                  h('span', { className: 'ofm_account_name' }, a.nickname || a.id),
+                  h('span', {
+                    className: !a.enabled ? 'ofm_badge ofm_badge_disabled' : (isPrimary ? 'ofm_badge ofm_badge_success' : 'ofm_badge')
+                  }, !a.enabled ? t('accountDisabled') : (isPrimary ? t('accountActive') : t('accountStandby')))
+                ),
+                h('div', { className: 'ofm_account_actions' },
+                  h('button', {
+                    className: a.enabled ? 'ofm_btn ofm_btn_secondary' : 'ofm_btn ofm_btn_primary',
+                    onClick: () => handleToggleAccount(a.id, !a.enabled)
+                  }, a.enabled ? t('disableAccount') : t('enableAccount'))
+                )
+              )
+            })
           )
-        ) : null,
+        ),
 
-        // Models Roster
+        // Available Models Section (Clean basic information only)
         h('div', { className: 'ofm_models_section' },
           h('div', { className: 'ofm_models_header' },
             h('h3', { className: 'ofm_title' }, t('modelRoster')),
@@ -618,17 +723,9 @@ window.__ModuleLoader__.load({
               h('div', { className: 'ofm_model_tags' },
                 m.contextWindow ? h('span', { className: 'ofm_model_tag' }, `${Math.round(m.contextWindow / 1024)}k 上下文`) : null,
                 m.supportsThinking ? h('span', { className: 'ofm_model_tag' }, t('modelThinking')) : null,
-                m.supportsImages ? h('span', { className: 'ofm_model_tag' }, t('modelVision')) : null
-              ),
-              m.supportsThinking ? h('div', { className: 'ofm_effort_row' },
-                h('span', { className: 'ofm_effort_label' }, '思考档位：'),
-                h('div', { className: 'ofm_effort_pills' },
-                  h('span', { className: 'ofm_effort_pill' }, '低'),
-                  h('span', { className: 'ofm_effort_pill ofm_effort_pill_active' }, '中'),
-                  h('span', { className: 'ofm_effort_pill' }, '高'),
-                  h('span', { className: 'ofm_effort_pill' }, '自适应')
-                )
-              ) : null
+                m.supportsImages ? h('span', { className: 'ofm_model_tag' }, t('modelVision')) : null,
+                m.recommended ? h('span', { className: 'ofm_model_tag' }, t('modelRecommended')) : null
+              )
             ))
           )
         ),
@@ -650,93 +747,198 @@ window.__ModuleLoader__.load({
       )
     }
 
-    // ── Chat Input Floating Quota Indicator ──────────────────────────────────
-    function setupInputQuotaIndicator() {
-      if (typeof window === 'undefined' || typeof document === 'undefined') return
-      let quotaData = null
-      let lastFetchTime = 0
+    // ── Original DSH Chat Input Floating Quota Indicator ─────────────────────
+    function setupOriginalInputQuotaIndicator() {
+      if (typeof document === 'undefined') return
 
-      async function queryQuota(force = false) {
-        if (!force && quotaData && Date.now() - lastFetchTime < 10000) return
+      let quota = (() => {
+        try { return JSON.parse(sessionStorage.getItem('dsh_gemini_quota_cache')); } catch { return null; }
+      })()
+      let loading = false, lastFetch = 0, lastClick = 0, scheduled = false, rendering = false
+
+      const fmtReset = (iso) => {
+        const t = new Date(iso).getTime()
+        if (isNaN(t)) return ''
+        const diff = Math.max(0, Math.floor((t - Date.now()) / 60000))
+        if (!diff) return '即将重置'
+        const h = Math.floor(diff / 60), d = Math.floor(h / 24)
+        return d ? `${d}天${h % 24 ? (h % 24) + '小时' : ''}后重置` : h ? `${h}小时${diff % 60}分后重置` : `${diff}分钟后重置`
+      }
+
+      function buildCardHtml(q) {
+        if (!q) return ''
+        const accs = q.accounts?.length ? q.accounts : [{
+          nickname: q.primaryAccount || 'Gemini 账号',
+          isPrimary: true, fiveHour: q.fiveHour, weekly: q.weekly
+        }]
+
+        return accs.map((a, i) => {
+          const p5 = a.fiveHour ? `${a.fiveHour.percent}%` : (a.ok === false ? '不可用' : '—')
+          const pW = a.weekly ? `${a.weekly.percent}%` : (a.ok === false ? '不可用' : '—')
+          const r5 = a.fiveHour ? fmtReset(a.fiveHour.resetTime) : ''
+          const rW = a.weekly ? fmtReset(a.weekly.resetTime) : ''
+          const isLow = !!(a.fiveHour && a.fiveHour.percent < 20)
+          const badge = a.isPrimary
+            ? '<span class="dsh-badge-primary">使用中</span>'
+            : (a.isRateLimited ? '<span class="dsh-badge-warn">限流冷却</span>' : '<span class="dsh-badge-standby">备用</span>')
+
+          return `
+            ${i > 0 ? '<div class="dsh-acct-sep"></div>' : ''}
+            <div class="dsh-acct-head"><span class="dsh-acct-name" title="${a.nickname}">${a.nickname}</span>${badge}</div>
+            <span class="dsh-col-label">5小时配额：</span><span class="dsh-col-val ${isLow ? 'dsh-val-warn' : ''}">剩余 ${p5}</span><span class="dsh-col-reset">${r5 ? '（' + r5 + '）' : ''}</span>
+            <span class="dsh-col-label">周总配额：</span><span class="dsh-col-val">剩余 ${pW}</span><span class="dsh-col-reset">${rW ? '（' + rW + '）' : ''}</span>
+          `
+        }).join('')
+      }
+
+      async function fetchQuota(force = false) {
+        if (loading) return
+        const now = Date.now()
+        if (!force && quota && now - lastFetch < 5000) return
+        loading = true
+        const box = document.getElementById('dsh-gemini-quota-indicator')
+        if (force && box) box.classList.add('is-loading')
         try {
-          const res = await window.fetch('/api/gemini/quota', {
-            method: force ? 'POST' : 'GET',
-            headers: { 'Accept': 'application/json' }
+          const res = await window.fetch('/api/gemini-quota', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ force }),
+            signal: AbortSignal.timeout(4500)
           })
-          const d = await res.json()
-          if (d?.ok) {
-            quotaData = d
-            lastFetchTime = Date.now()
-            updatePill()
+          const data = await res.json().catch(() => null)
+          if (data?.ok) {
+            quota = data
+            lastFetch = Date.now()
+            try { sessionStorage.setItem('dsh_gemini_quota_cache', JSON.stringify(data)); } catch {}
+          } else if (data?.enabled === false) {
+            quota = null
+            try { sessionStorage.removeItem('dsh_gemini_quota_cache'); } catch {}
+          }
+        } catch {} finally {
+          loading = false
+          box?.classList.remove('is-loading')
+          render()
+        }
+      }
+
+      const findAnchor = () =>
+        document.querySelector('[data-slot="conversation.input.model"]') ||
+        document.querySelector('.conversation-input-model') ||
+        document.querySelector('[class*="ModelSelect_root"]') ||
+        document.querySelector('button[aria-haspopup="menu"][title*="·"]')
+
+      function getActiveSelection(el) {
+        try {
+          const target = el?.querySelector?.('button') || el
+          const k = Object.keys(target || {}).find(x => x.startsWith('__reactFiber$'))
+          if (!k) return null
+          let f = target[k]
+          while (f) {
+            const dir = f.memoizedProps?.directory
+            if (dir?.getSnapshot) {
+              const s = dir.getSnapshot()
+              if (s?.current) return s.current
+            }
+            const cur = f.memoizedState?.current || f.memoizedProps?.current
+            if (cur?.provider) return cur
+            f = f.return
           }
         } catch {}
+        return null
       }
 
-      function findModelAnchor() {
-        return document.querySelector('[data-slot="conversation.input.model"]') ||
-               document.querySelector('.conversation-input-model') ||
-               document.querySelector('button[aria-haspopup="menu"][title*="·"]')
+      const isTargetGemini = (el) => {
+        if (!el) return false
+        const sel = getActiveSelection(el)
+        if (sel) return sel.provider === 'gemini'
+        const txt = ((el.textContent || '') + ' ' + (el.getAttribute('title') || '') + ' ' + (el.getAttribute('aria-label') || '')).toLowerCase()
+        return (txt.includes('gemini') && txt.includes('3.8')) || (txt.includes('gemini') && !/\b(1\.5|2\.0|2\.5|custom|api|openai|gateway)\b/.test(txt))
       }
 
-      function updatePill() {
-        const anchor = findModelAnchor()
-        if (!anchor) return
-        let pill = document.getElementById('dsh-gemini-quota-pill')
-        const p5 = quotaData?.fiveHour?.percent !== undefined ? `${quotaData.fiveHour.percent}%` : '—'
-        const pW = quotaData?.weekly?.percent !== undefined ? `${quotaData.weekly.percent}%` : '—'
-
-        if (!pill) {
-          pill = document.createElement('div')
-          pill.id = 'dsh-gemini-quota-pill'
-          pill.className = 'ofm_input_quota_box'
-          pill.onclick = e => {
-            e.stopPropagation()
-            queryQuota(true)
+      function render() {
+        if (rendering) return
+        rendering = true
+        try {
+          const anchor = findAnchor()
+          let box = document.getElementById('dsh-gemini-quota-indicator')
+          if (!anchor) return box?.remove()
+          if (!isTargetGemini(anchor) || (quota && quota.enabled === false)) return box && (box.style.display = 'none')
+          if (!quota) {
+            if (box) box.style.display = 'none'
+            return fetchQuota()
           }
-          anchor.insertAdjacentElement('beforebegin', pill)
+
+          const p5 = quota.fiveHour ? `${quota.fiveHour.percent}%` : '—'
+          const pW = quota.weekly ? `${quota.weekly.percent}%` : '—'
+          const cardHtml = buildCardHtml(quota)
+          const key = `${p5}_${pW}_${cardHtml.length}_${quota.primaryAccountId}`
+
+          if (!box) {
+            box = document.createElement('div')
+            box.id = 'dsh-gemini-quota-indicator'
+            box.className = 'dsh-gemini-quota-box'
+            box.innerHTML = `
+              <span class="dsh-quota-txt">5h: ${p5} ｜ 周: ${pW}</span>
+              <div class="dsh-gemini-quota-card">${cardHtml}</div>`
+            box.dataset.renderedKey = key
+            box.onmouseenter = () => { if (Date.now() - lastFetch > 3000) fetchQuota(); }
+            box.onclick = async (e) => {
+              e.stopPropagation()
+              const now = Date.now()
+              if (now - lastClick < 2000) return
+              lastClick = now
+              await fetchQuota(true)
+            }
+            anchor.insertAdjacentElement('beforebegin', box)
+          } else {
+            if (box.style.display === 'none') box.style.display = 'inline-flex'
+            if (box.nextElementSibling !== anchor) anchor.insertAdjacentElement('beforebegin', box)
+
+            if (box.dataset.renderedKey !== key) {
+              box.dataset.renderedKey = key
+              const txtEl = box.querySelector('.dsh-quota-txt')
+              if (txtEl) txtEl.textContent = `5h: ${p5} ｜ 周: ${pW}`
+              const cardEl = box.querySelector('.dsh-gemini-quota-card')
+              if (cardEl) cardEl.innerHTML = cardHtml
+            }
+          }
+        } catch {} finally {
+          rendering = false
         }
-
-        const r5 = formatReset(quotaData?.fiveHour?.resetTime)
-        const rW = formatReset(quotaData?.weekly?.resetTime)
-
-        pill.textContent = ''
-        const txtSpan = document.createElement('span')
-        txtSpan.className = 'ofm_input_quota_txt'
-        txtSpan.textContent = `5h: ${p5} ｜ 周: ${pW}`
-
-        // Safe DOM construction preventing DOM-XSS
-        const popupDiv = document.createElement('div')
-        popupDiv.className = 'ofm_input_quota_popup'
-
-        const headTitle = document.createElement('strong')
-        headTitle.textContent = 'Google Gemini 实时配额'
-        popupDiv.appendChild(headTitle)
-        popupDiv.appendChild(document.createElement('br'))
-
-        const line5 = document.createElement('span')
-        line5.textContent = `5小时配额: ${p5}${r5 ? ` (${r5})` : ''}`
-        popupDiv.appendChild(line5)
-        popupDiv.appendChild(document.createElement('br'))
-
-        const lineW = document.createElement('span')
-        lineW.textContent = `周总配额: ${pW}${rW ? ` (${rW})` : ''}`
-        popupDiv.appendChild(lineW)
-        popupDiv.appendChild(document.createElement('br'))
-
-        const refreshHint = document.createElement('span')
-        refreshHint.style.opacity = '0.7'
-        refreshHint.textContent = '点击强制刷新'
-        popupDiv.appendChild(refreshHint)
-
-        pill.appendChild(txtSpan)
-        pill.appendChild(popupDiv)
       }
 
-      setInterval(() => {
-        if (!document.hidden) queryQuota()
-      }, 30000)
+      const schedule = () => {
+        if (scheduled) return
+        scheduled = true
+        setTimeout(() => { scheduled = false; render(); }, 30)
+      }
 
-      setTimeout(() => queryQuota(), 1000)
+      const observer = new MutationObserver(mutations => {
+        for (const m of mutations) {
+          if (!m.target?.closest?.('#dsh-gemini-quota-indicator')) {
+            schedule()
+            return
+          }
+        }
+      })
+      observer.observe(document.body, {
+        childList: true, subtree: true, attributes: true,
+        attributeFilter: ['aria-label', 'title', 'class', 'data-slot']
+      })
+
+      const fastCheck = setInterval(() => {
+        if (document.hidden) return
+        const box = document.getElementById('dsh-gemini-quota-indicator')
+        const anchor = findAnchor()
+        if (anchor && isTargetGemini(anchor) && (!box || !box.isConnected || box.nextElementSibling !== anchor)) {
+          render()
+        }
+      }, 400)
+
+      const poll = setInterval(() => { if (!document.hidden) fetchQuota(); }, 60000)
+      const onFocus = () => { if (Date.now() - lastFetch > 15000) fetchQuota(); }
+      window.addEventListener('focus', onFocus)
+      setTimeout(() => { render(); fetchQuota(); }, 50)
     }
 
     // ── apply ─────────────────────────────────────────────────────────────────
@@ -768,8 +970,8 @@ window.__ModuleLoader__.load({
         return null
       }))
 
-      // Mount input quota pill
-      setupInputQuotaIndicator()
+      // Mount original chat input quota indicator
+      setupOriginalInputQuotaIndicator()
     }
 
     exports.apply = apply

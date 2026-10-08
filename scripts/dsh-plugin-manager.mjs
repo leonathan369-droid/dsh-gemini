@@ -69,25 +69,55 @@ function restartDsh() {
   run("pkill -f 'DeepSeek Harness' 2>/dev/null || true", true);
   run("sleep 2", true);
   run("open -a 'DeepSeek Harness'");
-  run("sleep 6", true);
+  console.log('⏳ Waiting 8s for DSH to boot and mount bundles...');
+  run("sleep 8", true);
   console.log('✅ DeepSeek Harness started.');
 }
 
 function verifyEndpoint() {
-  const status = getStatus();
+  let status = getStatus();
+  // If port not found immediately, retry after 2s
+  if (!status.port || status.port === 'unknown') {
+    run("sleep 2", true);
+    status = getStatus();
+  }
+
   if (status.port && status.port !== 'unknown') {
-    console.log(`🌐 Verifying endpoint on port ${status.port}...`);
-    const quotaRes = runOutput(`curl -s "http://127.0.0.1:${status.port}/api/gemini-quota"`);
+    console.log(`🌐 Verifying endpoints on port ${status.port}...`);
+    
+    // 1. Quota API
+    const quotaRes = runOutput(`curl -s "http://127.0.0.1:${status.port}/api/gemini/quota"`) ||
+                     runOutput(`curl -s "http://127.0.0.1:${status.port}/api/gemini-quota"`);
     try {
       const data = JSON.parse(quotaRes);
       if (data.ok) {
-        console.log(`✅ Quota API responding: 5h=${data.fiveHour?.percent}%, weekly=${data.weekly?.percent}%`);
+        console.log(`✅ Quota API responding: 5h=${data.fiveHour?.percent}%, weekly=${data.weekly?.percent}%, accounts=${data.accounts?.length}`);
       } else {
-        console.log(`⚠️ Quota API returned ok=false: ${quotaRes}`);
+        console.log(`⚠️ Quota API returned ok=false: ${quotaRes.slice(0, 100)}`);
       }
     } catch {
       console.log(`⚠️ Quota API response not JSON: ${quotaRes.slice(0, 100)}`);
     }
+
+    // 2. Models API
+    const modelsRes = runOutput(`curl -s "http://127.0.0.1:${status.port}/api/gemini/models"`);
+    try {
+      const data = JSON.parse(modelsRes);
+      if (data.ok && Array.isArray(data.models)) {
+        console.log(`✅ Models API responding: ${data.models.length} model(s) registered`);
+      }
+    } catch {}
+
+    // 3. Stealth API
+    const stealthRes = runOutput(`curl -s "http://127.0.0.1:${status.port}/api/gemini/stealth"`);
+    try {
+      const data = JSON.parse(stealthRes);
+      if (data.ok) {
+        console.log(`✅ Stealth API responding: machineId=${data.machineIdHash}, sessionId=${data.sessionId?.slice(0, 8)}...`);
+      }
+    } catch {}
+  } else {
+    console.log('⚠️ DSH host port not detected yet (DSH may still be launching in background).');
   }
 }
 
@@ -184,6 +214,9 @@ if (action === 'status') {
   if (target === 'dev') switchToDev();
   else if (target === 'stable') switchToStable();
   else console.error('Unknown target. Use: dev | stable');
+} else if (action === 'restart') {
+  restartDsh();
+  verifyEndpoint();
 } else if (action === 'test') {
   console.log('Running test suites in repo...');
   run(`cd ${GEMINI_REPO} && npm test`);
@@ -193,5 +226,6 @@ if (action === 'status') {
   console.log('  node scripts/dsh-plugin-manager.mjs status');
   console.log('  node scripts/dsh-plugin-manager.mjs switch dev');
   console.log('  node scripts/dsh-plugin-manager.mjs switch stable');
+  console.log('  node scripts/dsh-plugin-manager.mjs restart');
   console.log('  node scripts/dsh-plugin-manager.mjs test');
 }

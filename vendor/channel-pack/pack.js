@@ -68375,5 +68375,6 @@ export {
   inject,
   makeReadImage,
   makeReadImageRequest,
-  name
+  name,
+  startGeminiOAuthFlow
 };

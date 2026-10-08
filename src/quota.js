@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -279,3 +280,64 @@ export async function fetchQuota(force = false) {
 
   return inFlight;
 }
+export const getRawAccounts = () => {
+  try {
+    const raw = JSON.parse(fs.readFileSync(STATE, 'utf8'));
+    return (raw.accounts || []).filter(a => a.provider === 'gemini').map(a => ({
+      id: a.id,
+      nickname: maskEmail(a.nickname),
+      enabled: Boolean(a.enabled),
+      credentialRef: a.credentialRef,
+      createdAt: a.createdAt,
+      expiresAt: a.expiresAt
+    }));
+  } catch { return []; }
+};
+
+export const toggleAccount = (accountId, enabled) => {
+  try {
+    const raw = JSON.parse(fs.readFileSync(STATE, 'utf8'));
+    const acc = (raw.accounts || []).find(a => a.id === accountId && a.provider === 'gemini');
+    if (acc) {
+      acc.enabled = enabled !== undefined ? Boolean(enabled) : !acc.enabled;
+      fs.writeFileSync(STATE, JSON.stringify(raw, null, 2) + '\n', 'utf8');
+      cache = null;
+      return { ok: true, account: { ...acc, nickname: maskEmail(acc.nickname) } };
+    }
+    return { ok: false, error: 'account_not_found' };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+};
+
+export const persistAddedAccount = (credential, email = null) => {
+  try {
+    const suffix = crypto.randomBytes(4).toString('hex').toUpperCase();
+    const id = `gemini-${suffix.toLowerCase()}`;
+    const refName = `GEMINI_ACCOUNT_${suffix}`;
+    const userEmail = email || credential.email || id;
+
+    const credPath = path.join(os.homedir(), '.dsh/.credentials.yaml');
+    let credContent = fs.existsSync(credPath) ? fs.readFileSync(credPath, 'utf8') : '';
+    const yamlEntry = `\n${refName}: '${JSON.stringify(credential)}'\n`;
+    fs.writeFileSync(credPath, credContent + yamlEntry, 'utf8');
+
+    const raw = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : { accounts: [] };
+    if (!Array.isArray(raw.accounts)) raw.accounts = [];
+    raw.accounts.push({
+      id,
+      provider: 'gemini',
+      nickname: userEmail,
+      enabled: true,
+      credentialRef: refName,
+      refreshable: Boolean(credential.refresh_token),
+      createdAt: Date.now(),
+      expiresAt: credential.expires_in ? Date.now() + credential.expires_in * 1000 : undefined
+    });
+    fs.writeFileSync(STATE, JSON.stringify(raw, null, 2) + '\n', 'utf8');
+    cache = null;
+    return { ok: true, accountId: id, email: userEmail };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+};
