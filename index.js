@@ -119,11 +119,16 @@ export function apply(ctx, config = {}) {
         if (p === '/account/toggle' || p === '/account/toggle/') {
           let body = '';
           req.on('data', chunk => { body += chunk; });
-          req.on('end', () => {
+          req.on('end', async () => {
             try {
               const parsed = JSON.parse(body || '{}');
               const { id, enabled } = parsed;
+              const pool = channelPackModule?.getAccountPool();
+              if (pool) {
+                try { await pool.updateAccount(id, { enabled: Boolean(enabled) }); } catch {}
+              }
               const result = toggleAccount(id, enabled);
+              try { pool?.reload?.(); } catch {}
               res.end(JSON.stringify({ ...result, accounts: getRawAccounts() }));
             } catch (err) {
               res.writeHead(400);
@@ -139,12 +144,17 @@ export function apply(ctx, config = {}) {
         if (p === '/account/delete' || p === '/account/delete/') {
           let body = '';
           req.on('data', chunk => { body += chunk; });
-          req.on('end', () => {
+          req.on('end', async () => {
             try {
               const parsed = JSON.parse(body || '{}');
               const { id } = parsed;
               if (!id) return res.end(JSON.stringify({ ok: false, error: 'missing_account_id' }));
+              const pool = channelPackModule?.getAccountPool();
+              if (pool) {
+                try { await pool.removeAccount(id); } catch {}
+              }
               const result = deleteAccount(id);
+              try { pool?.reload?.(); } catch {}
               res.end(JSON.stringify(result));
             } catch (err) {
               res.writeHead(400);

@@ -426,7 +426,7 @@ window.__ModuleLoader__.load({
 .dsh-acct-sep{grid-column:span 3;border-top:1px solid rgba(255,255,255,.1);margin:4px 0 2px}
 .dsh-acct-name{font-weight:500;color:var(--dsw-alias-label-primary,#fff);max-width:220px;overflow:hidden;text-overflow:ellipsis}
 .dsh-badge-primary{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(66,133,244,.25);color:#8ab4f8}
-.dsh-badge-standby{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.08);color:var(--dsw-alias-label-caption,#999)}
+.dsh-badge-standby{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.08);color:var(--dsw-alias-label-caption,#999)}.dsh-badge-disabled{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.05);color:var(--dsw-alias-label-caption,#777)}
 .dsh-badge-warn{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(250,173,20,.2);color:#faad14}
 `
 
@@ -819,14 +819,17 @@ window.__ModuleLoader__.load({
         }]
 
         return accs.map((a, i) => {
-          const p5 = a.fiveHour ? `${a.fiveHour.percent}%` : (a.ok === false ? '不可用' : '—')
-          const pW = a.weekly ? `${a.weekly.percent}%` : (a.ok === false ? '不可用' : '—')
-          const r5 = a.fiveHour ? fmtReset(a.fiveHour.resetTime) : ''
-          const rW = a.weekly ? fmtReset(a.weekly.resetTime) : ''
-          const isLow = !!(a.fiveHour && a.fiveHour.percent < 20)
-          const badge = a.isPrimary
-            ? '<span class="dsh-badge-primary">使用中</span>'
-            : (a.isRateLimited ? '<span class="dsh-badge-warn">限流冷却</span>' : '<span class="dsh-badge-standby">备用</span>')
+          const isDisabled = a.enabled === false
+          const p5 = isDisabled ? '已停用' : (a.fiveHour ? `${a.fiveHour.percent}%` : (a.ok === false ? '不可用' : '—'))
+          const pW = isDisabled ? '已停用' : (a.weekly ? `${a.weekly.percent}%` : (a.ok === false ? '不可用' : '—'))
+          const r5 = isDisabled ? '' : (a.fiveHour ? fmtReset(a.fiveHour.resetTime) : '')
+          const rW = isDisabled ? '' : (a.weekly ? fmtReset(a.weekly.resetTime) : '')
+          const isLow = !!(!isDisabled && a.fiveHour && a.fiveHour.percent < 20)
+          const badge = isDisabled
+            ? '<span class="dsh-badge-disabled">已停用</span>'
+            : (a.isPrimary
+              ? '<span class="dsh-badge-primary">使用中</span>'
+              : (a.isRateLimited ? '<span class="dsh-badge-warn">限流冷却</span>' : '<span class="dsh-badge-standby">备用</span>'))
 
           return `
             ${i > 0 ? '<div class="dsh-acct-sep"></div>' : ''}

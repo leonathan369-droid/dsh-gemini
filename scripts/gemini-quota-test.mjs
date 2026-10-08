@@ -20,11 +20,16 @@ async function run() {
 
     // 2. fetchQuota live check
     const res = await quota.fetchQuota();
-    assert.equal(res.ok, true, 'fetchQuota must return ok=true');
-    assert.equal(res.provider, 'gemini', 'provider must be gemini');
-    assert(typeof res.fiveHour?.percent === 'number', 'fiveHour percent must be a number');
-    assert(typeof res.weekly?.percent === 'number', 'weekly percent must be a number');
-    console.log(`ok  live quota fetched: 5h=${res.fiveHour.percent}%, weekly=${res.weekly.percent}%`);
+    if (acc.enabled) {
+      assert.equal(res.ok, true, 'fetchQuota must return ok=true');
+      assert.equal(res.provider, 'gemini', 'provider must be gemini');
+      assert(typeof res.fiveHour?.percent === 'number', 'fiveHour percent must be a number');
+      assert(typeof res.weekly?.percent === 'number', 'weekly percent must be a number');
+      console.log(`ok  live quota fetched: 5h=${res.fiveHour.percent}%, weekly=${res.weekly.percent}%`);
+    } else {
+      assert.equal(res.enabled, false, 'fetchQuota must return enabled=false when disabled');
+      console.log(`ok  disabled state verified: quota accurately disabled (ok=${res.ok}, enabled=${res.enabled})`);
+    }
   }
 
   console.log('gemini-quota-test: OK');

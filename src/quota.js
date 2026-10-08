@@ -262,16 +262,50 @@ export async function fetchQuota(force = false) {
 
   inFlight = (async () => {
     try {
-      const accs = getAccounts();
+            const accs = getAccounts();
       if (!accs.length) {
         return { ok: false, error: 'no_account', enabled: false, provider: 'gemini', accounts: [] };
       }
 
+      const enabledAccs = accs.filter(a => a.enabled !== false);
+      if (!enabledAccs.length) {
+        cache = {
+          ok: false,
+          enabled: false,
+          provider: 'gemini',
+          primaryAccountId: null,
+          primaryAccount: '全部账号已停用',
+          fiveHour: { percent: 0, resetTime: '' },
+          weekly: { percent: 0, resetTime: '' },
+          accounts: accs.map(a => ({
+            id: a.id,
+            nickname: maskEmail(a.nickname),
+            enabled: false,
+            isPrimary: false,
+            ok: false,
+            error: 'account_disabled'
+          })),
+          fetchedAt: Date.now()
+        };
+        lastFetch = Date.now();
+        return cache;
+      }
+
       // Parallel concurrent execution for all configured accounts
-      const settled = await Promise.allSettled(accs.map(async (a, index) => {
+      const settled = await Promise.allSettled(accs.map(async (a) => {
+        if (!a.enabled) {
+          return {
+            id: a.id,
+            nickname: maskEmail(a.nickname),
+            enabled: false,
+            isPrimary: false,
+            ok: false,
+            error: 'account_disabled'
+          };
+        }
         let token = getToken(a.credentialRef);
         if (!token) {
-          return { id: a.id, nickname: maskEmail(a.nickname), enabled: a.enabled, isPrimary: index === 0, ok: false, error: 'no_token' };
+          return { id: a.id, nickname: maskEmail(a.nickname), enabled: true, isPrimary: false, ok: false, error: 'no_token' };
         }
         let q = await fetchOne(token);
         if (q.error === 'HTTP 401') {
@@ -281,8 +315,8 @@ export async function fetchQuota(force = false) {
         return {
           id: a.id,
           nickname: maskEmail(a.nickname),
-          enabled: a.enabled,
-          isPrimary: index === 0,
+          enabled: true,
+          isPrimary: false,
           ok: q.ok,
           fiveHour: q.fiveHour,
           weekly: q.weekly,
@@ -293,22 +327,24 @@ export async function fetchQuota(force = false) {
       const results = settled.map((s, idx) => s.status === 'fulfilled' ? s.value : {
         id: accs[idx].id,
         nickname: maskEmail(accs[idx].nickname),
-        enabled: accs[idx].enabled,
-        isPrimary: idx === 0,
+        enabled: Boolean(accs[idx].enabled),
+        isPrimary: false,
         ok: false,
         error: s.reason?.message || 'timeout'
       });
 
-      const primary = results.find(r => r.ok && r.enabled) || results[0];
+      const primary = results.find(r => r.ok && r.enabled);
+      const isOverallEnabled = Boolean(primary);
+
       cache = {
-        ok: Boolean(primary?.ok),
-        enabled: true,
+        ok: isOverallEnabled,
+        enabled: isOverallEnabled,
         provider: 'gemini',
-        primaryAccountId: primary?.id,
-        primaryAccount: maskEmail(primary?.nickname),
+        primaryAccountId: primary ? primary.id : null,
+        primaryAccount: primary ? maskEmail(primary.nickname) : '无可用启用账号',
         fiveHour: primary?.fiveHour || { percent: 0, resetTime: '' },
         weekly: primary?.weekly || { percent: 0, resetTime: '' },
-        accounts: results,
+        accounts: results.map(r => ({ ...r, isPrimary: Boolean(primary && r.id === primary.id) })),
         fetchedAt: Date.now()
       };
       lastFetch = Date.now();
@@ -340,8 +376,13 @@ export const toggleAccount = (accountId, enabled) => {
     const acc = (raw.accounts || []).find(a => a.id === accountId && a.provider === 'gemini');
     if (acc) {
       acc.enabled = enabled !== undefined ? Boolean(enabled) : !acc.enabled;
+      if (!acc.enabled && raw.primaryAccountId === accountId) {
+        const next = (raw.accounts || []).find(a => a.provider === 'gemini' && a.enabled && a.id !== accountId);
+        raw.primaryAccountId = next ? next.id : null;
+      }
       fs.writeFileSync(STATE, JSON.stringify(raw, null, 2) + '\n', 'utf8');
       cache = null;
+      lastFetch = 0;
       return { ok: true, account: { ...acc, nickname: maskEmail(acc.nickname) } };
     }
     return { ok: false, error: 'account_not_found' };
