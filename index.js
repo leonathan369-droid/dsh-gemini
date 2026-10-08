@@ -6,12 +6,9 @@
  *   - Real-time 5h / Weekly Dual Quota Synchronization
  *   - Multi-Account Auto-Failover & Account Add / Toggle Management
  */
-import fs from 'node:fs';
-import path from 'node:path';
 import {
   fetchQuota,
   getCachedModels,
-  saveCachedModels,
   fetchRemoteAvailableModels,
   getAccounts,
   getRawAccounts,
@@ -65,6 +62,11 @@ export function apply(ctx, config = {}) {
       handler: handleQuota
     }), 'dsh-gemini: legacy quota api');
 
+    // Helper: Safely parses request URLs
+    const parseUrl = (req) => {
+      try { return new URL(req.url ?? '/', 'http://localhost'); }
+      catch { return null; }
+    };
     // Helper: Safely reads and parses JSON request bodies
     const readJsonBody = async (req, maxBytes = 65536) => new Promise((resolve, reject) => {
       let body = '';
@@ -84,10 +86,8 @@ export function apply(ctx, config = {}) {
       kind: 'prefix',
       path: '/api/gemini',
       handler: async (req, res) => {
-        let url;
-        try {
-          url = new URL(req.url ?? '/', 'http://localhost');
-        } catch {
+        const url = parseUrl(req);
+        if (!url) {
           res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' });
           return res.end(JSON.stringify({ error: 'bad_request', message: 'malformed URI' }));
         }
@@ -228,10 +228,8 @@ export function apply(ctx, config = {}) {
       kind: 'prefix',
       path: '/api/our-free-model',
       handler: (req, res) => {
-        let url;
-        try {
-          url = new URL(req.url ?? '/', 'http://localhost');
-        } catch {
+        const url = parseUrl(req);
+        if (!url) {
           res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' });
           return res.end(JSON.stringify({ error: 'bad_request', message: 'malformed URI' }));
         }

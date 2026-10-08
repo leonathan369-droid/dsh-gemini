@@ -801,9 +801,7 @@ window.__ModuleLoader__.load({
       let quota = (() => {
         try { return JSON.parse(sessionStorage.getItem('dsh_gemini_quota_cache')); } catch { return null; }
       })()
-      let loading = false, lastFetch = 0, lastClick = 0, scheduled = false, rendering = false
-
-      const fmtReset = formatReset
+      let loading = false, lastFetch = 0, scheduled = false, rendering = false
 
       function buildCardHtml(q) {
         if (!q) return ''
@@ -816,8 +814,8 @@ window.__ModuleLoader__.load({
           const isDisabled = a.enabled === false
           const p5 = isDisabled ? '已停用' : (a.fiveHour ? `${a.fiveHour.percent}%` : (a.ok === false ? '不可用' : '—'))
           const pW = isDisabled ? '已停用' : (a.weekly ? `${a.weekly.percent}%` : (a.ok === false ? '不可用' : '—'))
-          const r5 = isDisabled ? '' : (a.fiveHour ? fmtReset(a.fiveHour.resetTime) : '')
-          const rW = isDisabled ? '' : (a.weekly ? fmtReset(a.weekly.resetTime) : '')
+          const r5 = isDisabled ? '' : (a.fiveHour ? formatReset(a.fiveHour.resetTime) : '')
+          const rW = isDisabled ? '' : (a.weekly ? formatReset(a.weekly.resetTime) : '')
           const isLow = !!(!isDisabled && a.fiveHour && a.fiveHour.percent < 20)
           const badge = isDisabled
             ? '<span class="dsh-badge-disabled">已停用</span>'

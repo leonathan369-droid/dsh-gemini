@@ -98,7 +98,6 @@ export const getCredential = (ref) => {
 
 export const getToken = (ref) => getCredential(ref)?.access_token || null;
 
-
 export function refreshTokenForRef(ref) {
   if (refreshInFlight.has(ref)) {
     return refreshInFlight.get(ref);
@@ -174,9 +173,7 @@ export async function fetchOne(token, project = 'aicode-consumers') {
 /**
  * Extracts canonical base ID and tier from concrete model identifier
  */
-function maskEmail(str) {
-  return str || '';
-}
+const maskEmail = (str) => str || '';
 
 function extractCanonical(id) {
   const effortTiers = ['extra-low', 'low', 'medium', 'high', 'tiered'];
@@ -418,7 +415,6 @@ export const toggleAccount = (accountId, enabled) => {
     return { ok: false, error: err.message };
   }
 };
-
 
 export const deleteAccount = (accountId) => {
   try {
