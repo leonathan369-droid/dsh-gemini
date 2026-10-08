@@ -799,20 +799,7 @@ window.__ModuleLoader__.load({
       })()
       let loading = false, lastFetch = 0, lastClick = 0, scheduled = false, rendering = false
 
-      const fmtReset = (iso) => {
-        const t = new Date(iso).getTime()
-        if (isNaN(t)) return ''
-        const diffMs = t - Date.now()
-        if (diffMs <= 0) return '即将重置'
-        const totalHours = Math.floor(diffMs / 3600000)
-        const m = Math.floor((diffMs % 3600000) / 60000)
-        if (totalHours >= 24) {
-          const days = Math.floor(totalHours / 24)
-          const remHours = totalHours % 24
-          return remHours > 0 ? `${days}天${remHours}小时后` : `${days}天后`
-        }
-        return totalHours > 0 ? `${totalHours}小时${m}分后` : `${m}分后`
-      }
+      const fmtReset = formatReset
 
       function buildCardHtml(q) {
         if (!q) return ''

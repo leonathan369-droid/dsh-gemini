@@ -65,6 +65,20 @@ export function apply(ctx, config = {}) {
       handler: handleQuota
     }), 'dsh-gemini: legacy quota api');
 
+    // Helper: Safely reads and parses JSON request bodies
+    const readJsonBody = async (req, maxBytes = 65536) => new Promise((resolve, reject) => {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+        if (body.length > maxBytes) reject(new Error('payload_too_large'));
+      });
+      req.on('end', () => {
+        try { resolve(body ? JSON.parse(body) : {}); }
+        catch { reject(new Error('invalid_json')); }
+      });
+      req.on('error', reject);
+    });
+
     // B. Main Gemini API Gateway
     scoped.effect(() => server.register({
       kind: 'prefix',
@@ -77,24 +91,22 @@ export function apply(ctx, config = {}) {
           res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' });
           return res.end(JSON.stringify({ error: 'bad_request', message: 'malformed URI' }));
         }
-        const p = url.pathname.replace(/^\/api\/gemini/, '') || '/';
+        const p = url.pathname.replace(/^\/api\/gemini\/?/, '').replace(/\/$/, '');
 
         res.setHeader('content-type', 'application/json; charset=utf-8');
         res.setHeader('cache-control', 'no-store');
 
         // Quota
-        if (p === '/quota' || p === '/quota/') {
-          return handleQuota(req, res);
-        }
+        if (p === 'quota') return handleQuota(req, res);
 
         // Models list
-        if (p === '/models' || p === '/models/') {
+        if (p === 'models') {
           const models = getCachedModels();
           return res.end(JSON.stringify({ ok: true, models, count: models.length }));
         }
 
         // Live fetch models from Google Cloud Code PA
-        if (p === '/models/fetch' || p === '/models/fetch/') {
+        if (p === 'models/fetch') {
           try {
             const models = await fetchRemoteAvailableModels();
             return res.end(JSON.stringify({ ok: true, models, count: models.length, fetchedAt: Date.now() }));
@@ -110,61 +122,47 @@ export function apply(ctx, config = {}) {
         }
 
         // Account management: List all raw accounts (including disabled)
-        if (p === '/accounts' || p === '/accounts/') {
-          const accounts = getRawAccounts();
-          return res.end(JSON.stringify({ ok: true, accounts }));
+        if (p === 'accounts') {
+          return res.end(JSON.stringify({ ok: true, accounts: getRawAccounts() }));
         }
 
         // Account management: Toggle account enabled/disabled
-        if (p === '/account/toggle' || p === '/account/toggle/') {
-          let body = '';
-          req.on('data', chunk => { body += chunk; });
-          req.on('end', async () => {
-            try {
-              const parsed = JSON.parse(body || '{}');
-              const { id, enabled } = parsed;
-              const pool = channelPackModule?.getAccountPool();
-              if (pool) {
-                try { await pool.updateAccount(id, { enabled: Boolean(enabled) }); } catch {}
-              }
-              const result = toggleAccount(id, enabled);
-              try { pool?.reload?.(); } catch {}
-              res.end(JSON.stringify({ ...result, accounts: getRawAccounts() }));
-            } catch (err) {
-              res.writeHead(400);
-              res.end(JSON.stringify({ ok: false, error: err.message }));
+        if (p === 'account/toggle') {
+          try {
+            const { id, enabled } = await readJsonBody(req);
+            const pool = channelPackModule?.getAccountPool();
+            if (pool) {
+              try { await pool.updateAccount(id, { enabled: Boolean(enabled) }); } catch {}
             }
-          });
-          return;
+            const result = toggleAccount(id, enabled);
+            try { pool?.reload?.(); } catch {}
+            return res.end(JSON.stringify({ ...result, accounts: getRawAccounts() }));
+          } catch (err) {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ ok: false, error: err.message }));
+          }
+        }
+
+        // Account management: Delete account completely
+        if (p === 'account/delete') {
+          try {
+            const { id } = await readJsonBody(req);
+            if (!id) return res.end(JSON.stringify({ ok: false, error: 'missing_account_id' }));
+            const pool = channelPackModule?.getAccountPool();
+            if (pool) {
+              try { await pool.removeAccount(id); } catch {}
+            }
+            const result = deleteAccount(id);
+            try { pool?.reload?.(); } catch {}
+            return res.end(JSON.stringify(result));
+          } catch (err) {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ ok: false, error: err.message }));
+          }
         }
 
         // Account management: Add account via Google OAuth flow
-        
-        // Account management: Delete account completely
-        if (p === '/account/delete' || p === '/account/delete/') {
-          let body = '';
-          req.on('data', chunk => { body += chunk; });
-          req.on('end', async () => {
-            try {
-              const parsed = JSON.parse(body || '{}');
-              const { id } = parsed;
-              if (!id) return res.end(JSON.stringify({ ok: false, error: 'missing_account_id' }));
-              const pool = channelPackModule?.getAccountPool();
-              if (pool) {
-                try { await pool.removeAccount(id); } catch {}
-              }
-              const result = deleteAccount(id);
-              try { pool?.reload?.(); } catch {}
-              res.end(JSON.stringify(result));
-            } catch (err) {
-              res.writeHead(400);
-              res.end(JSON.stringify({ ok: false, error: err.message }));
-            }
-          });
-          return;
-        }
-
-        if (p === '/account/add' || p === '/account/add/') {
+        if (p === 'account/add') {
           try {
             if (!channelPackModule?.startGeminiOAuthFlow) {
               return res.end(JSON.stringify({ ok: false, error: 'OAuth engine not initialized yet' }));
@@ -183,14 +181,12 @@ export function apply(ctx, config = {}) {
         }
 
         // Ping / Latency test
-        if (p === '/ping' || p === '/ping/') {
+        if (p === 'ping') {
           const start = Date.now();
           try {
             const accs = getAccounts().filter(a => a.enabled);
             const token = accs[0] ? getToken(accs[0].credentialRef) : null;
-            if (token) {
-              await fetchOne(token);
-            }
+            if (token) await fetchOne(token);
             const latency = Date.now() - start;
             return res.end(JSON.stringify({ ok: true, latency, timestamp: Date.now() }));
           } catch (err) {
@@ -199,7 +195,7 @@ export function apply(ctx, config = {}) {
         }
 
         // Stealth identity status
-        if (p === '/stealth' || p === '/stealth/') {
+        if (p === 'stealth') {
           const id = getDeviceIdentity();
           return res.end(JSON.stringify({
             ok: true,
@@ -211,7 +207,7 @@ export function apply(ctx, config = {}) {
         }
 
         // General status
-        if (p === '/state' || p === '/state/') {
+        if (p === 'state') {
           const accounts = getRawAccounts();
           const models = getCachedModels();
           return res.end(JSON.stringify({

@@ -69,25 +69,10 @@ export function getSessionId() {
  * Builds realistic Google Cloud Code / Antigravity request headers
  */
 export function getGeminiHeaders(credential, options = {}) {
-  const identity = getDeviceIdentity();
-  const headers = new Headers();
-
-  if (credential?.access_token) {
-    headers.set('Authorization', `Bearer ${credential.access_token}`);
-  }
-  headers.set('Content-Type', 'application/json');
-  headers.set('User-Agent', `antigravity/${identity.clientVersion} (${identity.platform})`);
-  headers.set('x-client-name', 'antigravity');
-  headers.set('x-client-version', identity.clientVersion);
-  headers.set('x-machine-id', identity.machineId);
-  headers.set('x-vscode-sessionid', currentSessionId);
-  headers.set('x-goog-api-client', 'gl-node/22.19.0 gdcl/1.0.0');
-  headers.set('Accept-Language', 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7');
-
+  const headers = new Headers(getIdentityHeaderObject(credential?.access_token));
   if (options.includeAccept === true) {
     headers.set('Accept', 'application/json');
   }
-
   return headers;
 }
 

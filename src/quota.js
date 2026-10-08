@@ -96,20 +96,7 @@ export const getCredential = (ref) => {
   return null;
 };
 
-export const getToken = (ref) => {
-  for (const credPath of CRED_CANDIDATES) {
-    try {
-      if (!fs.existsSync(credPath)) continue;
-      const txt = fs.readFileSync(credPath, 'utf8');
-      const m = txt.match(new RegExp(`${ref}:\\s*['"]?({.+?})['"]?\\s*$`, 'm')) || txt.match(new RegExp(`${ref}:\\s*['"]?({.*?})['"]?`, 's'));
-      if (m) {
-        const parsed = JSON.parse(m[1].replace(/\n/g, ' '));
-        if (parsed?.access_token) return parsed.access_token;
-      }
-    } catch {}
-  }
-  return null;
-};
+export const getToken = (ref) => getCredential(ref)?.access_token || null;
 
 
 export function refreshTokenForRef(ref) {
@@ -334,7 +321,7 @@ export async function fetchQuota(force = false) {
         }
 
         const cred = getCredential(a.credentialRef);
-        let token = cred?.access_token || getToken(a.credentialRef);
+        let token = cred?.access_token || null;
         if (!token) {
           list.push({ id: a.id, nickname: maskEmail(a.nickname), enabled: true, isPrimary: i === 0, ok: false, error: 'no_token' });
           continue;
@@ -435,9 +422,9 @@ export const toggleAccount = (accountId, enabled) => {
 
 export const deleteAccount = (accountId) => {
   try {
-    const raw = JSON.parse(fs.readFileSync(STATE, "utf8"));
-    const idx = (raw.accounts || []).findIndex(a => a.id === accountId && a.provider === "gemini");
-    if (idx === -1) return { ok: false, error: "account_not_found" };
+    const raw = JSON.parse(fs.readFileSync(STATE, 'utf8'));
+    const idx = (raw.accounts || []).findIndex(a => a.id === accountId && a.provider === 'gemini');
+    if (idx === -1) return { ok: false, error: 'account_not_found' };
 
     const target = raw.accounts[idx];
     const ref = target.credentialRef;
@@ -445,38 +432,22 @@ export const deleteAccount = (accountId) => {
     // 1. Remove from state.json
     raw.accounts.splice(idx, 1);
     if (raw.primaryAccountId === accountId) {
-      const next = raw.accounts.find(a => a.provider === "gemini" && a.enabled);
+      const next = raw.accounts.find(a => a.provider === 'gemini' && a.enabled);
       raw.primaryAccountId = next ? next.id : null;
     }
-    fs.writeFileSync(STATE, JSON.stringify(raw, null, 2) + "\n", "utf8");
+    fs.writeFileSync(STATE, JSON.stringify(raw, null, 2) + '\n', 'utf8');
 
-    // 2. Remove from all credential YAML files
+    // 2. Remove from all credential YAML files using deterministic multiline block regex
     if (ref) {
+      const escapedRef = ref.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Matches: ^  <ref>: ... including all continuation lines up to next sibling key or unindented header
+      const pattern = new RegExp(`^[ \t]*${escapedRef}:[^\n]*(?:\n(?![ \t]{0,2}[A-Za-z0-9_-]+:)[^\n]*)*\n?`, 'm');
       for (const credPath of CRED_CANDIDATES) {
         if (!fs.existsSync(credPath)) continue;
-        const txt = fs.readFileSync(credPath, "utf8");
-        const lines = txt.split("\n");
-        const resultLines = [];
-        let skipping = false;
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          const trimmed = line.trim();
-          if (trimmed.startsWith(ref + ":")) {
-            skipping = true;
-            continue;
-          }
-          if (skipping) {
-            if (/^  [A-Za-z0-9_-]+:/.test(line) || /^[A-Za-z0-9_-]+:/.test(line)) {
-              skipping = false;
-              resultLines.push(line);
-            }
-            continue;
-          }
-          resultLines.push(line);
-        }
-        const cleaned = resultLines.join("\n");
+        const txt = fs.readFileSync(credPath, 'utf8');
+        const cleaned = txt.replace(pattern, '');
         if (cleaned !== txt) {
-          fs.writeFileSync(credPath, cleaned, "utf8");
+          fs.writeFileSync(credPath, cleaned, 'utf8');
         }
       }
     }
