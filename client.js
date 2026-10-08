@@ -31,6 +31,7 @@ window.__ModuleLoader__.load({
         pingTest: '延迟测速',
         pingTesting: '测试中…',
         pingSuccess: '延迟',
+        pingFailed: '测速失败',
         refreshQuota: '刷新配额',
         refreshing: '正在刷新…',
         refreshed: '已更新',
@@ -66,6 +67,7 @@ window.__ModuleLoader__.load({
         pingTest: 'Ping Test',
         pingTesting: 'Pinging…',
         pingSuccess: 'Latency',
+        pingFailed: 'Ping Failed',
         refreshQuota: 'Refresh Quota',
         refreshing: 'Refreshing…',
         refreshed: 'Updated',
@@ -567,7 +569,7 @@ window.__ModuleLoader__.load({
         try {
           const res = await window.fetch('/api/gemini/ping')
           const data = await res.json()
-          if (data?.latency !== undefined) setPingMs(data.latency)
+          if (data?.ok && data?.latency !== undefined) setPingMs(data.latency); else setPingMs(-1);
         } catch {} finally {
           setPinging(false)
         }
@@ -674,7 +676,7 @@ window.__ModuleLoader__.load({
               onClick: handlePing
             },
               pinging ? renderSpinner() : h('span', { className: 'ofm_btn_icon' }, '⚡'),
-              pinging ? t('pingTesting') : (pingMs !== null ? `${t('pingSuccess')} ${pingMs}ms` : t('pingTest'))
+              pinging ? t('pingTesting') : (pingMs !== null ? (pingMs >= 0 ? `${t('pingSuccess')} ${pingMs}ms` : t('pingFailed')) : t('pingTest'))
             ),
             // Refresh Quota Button
             h('button', {

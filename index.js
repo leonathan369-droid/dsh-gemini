@@ -182,8 +182,12 @@ export function apply(ctx, config = {}) {
           try {
             const accs = getAccounts().filter(a => a.enabled);
             const token = accs[0] ? getToken(accs[0].credentialRef) : null;
-            if (token) await fetchOne(token);
+            if (!token) return res.end(JSON.stringify({ ok: false, error: 'no_active_account', latency: 0 }));
+            const q = await fetchOne(token);
             const latency = Date.now() - start;
+            if (!q.ok) {
+              return res.end(JSON.stringify({ ok: false, error: q.error || 'auth_failed', latency }));
+            }
             return res.end(JSON.stringify({ ok: true, latency, timestamp: Date.now() }));
           } catch (err) {
             return res.end(JSON.stringify({ ok: false, error: err.message, latency: Date.now() - start }));
