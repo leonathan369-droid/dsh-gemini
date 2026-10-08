@@ -41,6 +41,18 @@ window.__ModuleLoader__.load({
         quotaWeekly: '每星期配额',
         resetAt: '重置于',
         accountTitle: '账号管理',
+        faqBtn: '常见问题',
+        faqTitle: 'Gemini Engine 常见问题与排查指南',
+        faqQ1: '为什么新添加账号后显示无配额或不可用？',
+        faqA1: '新设备或首次调用 Gemini Code Assist 时，Google 官方安全策略可能会触发「二次验证挑战（HTTP 403: VALIDATION_REQUIRED）」。请在浏览器登录该账号并打开 Google 官方验证页面确认一次，完成后点击 ⟳ 刷新配额即可正常恢复。',
+        faqQ2: '主用账号与备用账号的生效规则是什么？',
+        faqA2: '系统遵循「先启用的账号为主用，后启用的账号为备用」原则。日常对话优先使用主用账号；当主用账号遭遇 HTTP 429 频控或配额耗尽时，引擎将自动故障转移（Failover）至备用账号。',
+        faqQ3: '账号登录凭据会过期吗？如何自动续期？',
+        faqA3: 'Google Access Token 有效期约为 1 小时。本插件内置了提前 180 秒的主动静默续期机制，使用 Google OAuth Refresh Token 在后台自动无感换取新 Token，无需反复重新登录。',
+        faqQ4: '点击删除账号会彻底清除登录信息吗？',
+        faqA4: '会。点击删除并确认后，系统会同时从本地状态表与所有凭据 YAML 文件中物理抹除该账号的全部 Token、密钥与关联信息，达成 0 痕迹彻底清除。',
+        fetchedModelsCount: '获取了 {n} 个模型',
+        fetchModelsFailed: '获取失败',
         accountActive: '主用',
         accountStandby: '备用',
         accountDisabled: '已停用',
@@ -77,6 +89,18 @@ window.__ModuleLoader__.load({
         quotaWeekly: 'Weekly Quota',
         resetAt: 'Resets at',
         accountTitle: 'Account Management',
+        faqBtn: 'FAQ',
+        faqTitle: 'Gemini Engine FAQ & Documentation',
+        faqQ1: 'Why does a newly added account show no quota or unavailable?',
+        faqA1: 'When calling Gemini Code Assist for the first time or from a new device, Google may trigger a validation challenge (HTTP 403: VALIDATION_REQUIRED). Please log in to the account and confirm the Google validation prompt in your browser, then click ⟳ refresh quota.',
+        faqQ2: 'What is the rule for primary and standby accounts?',
+        faqA2: 'The engine enforces "first enabled is primary, subsequent enabled are standby". Daily chats prioritize the primary account, and automatically fail over to standby accounts if HTTP 429 rate limits are met.',
+        faqQ3: 'Will login credentials expire? How does auto-refresh work?',
+        faqA3: 'Google Access Tokens last about 1 hour. This plugin includes a proactive background auto-refresh mechanism (180s buffer) that silently requests fresh tokens using the OAuth refresh token.',
+        faqQ4: 'Does clicking delete completely erase all login information?',
+        faqA4: 'Yes. Confirming deletion physically purges the account and all associated tokens from state.json and credentials YAML files with zero trace.',
+        fetchedModelsCount: 'Fetched {n} models',
+        fetchModelsFailed: 'Fetch Failed',
         accountActive: 'Primary',
         accountStandby: 'Standby',
         accountDisabled: 'Disabled',
@@ -318,6 +342,49 @@ window.__ModuleLoader__.load({
   flex-direction: column;
   gap: 14px;
 }
+
+.ofm_account_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ofm_faq_title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary, #fff);
+  margin-bottom: 2px;
+}
+.ofm_faq_card {
+  background: var(--dsw-alias-interactive-bg-hover, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.08));
+  border-radius: var(--dsw-radius-md, 8px);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ofm_faq_item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ofm_faq_q {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--dsw-alias-label-primary, #fff);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ofm_faq_a {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--dsw-alias-label-secondary, #b8b8b8);
+  padding-left: 2px;
+}
 .ofm_models_header {
   display: flex;
   justify-content: space-between;
@@ -487,6 +554,8 @@ window.__ModuleLoader__.load({
       const [accounts, setAccounts] = useState([])
       const [stealth, setStealth] = useState(null)
       const [fetching, setFetching] = useState(false)
+      const [fetchStatus, setFetchStatus] = useState(null)
+      const [showFaq, setShowFaq] = useState(false)
       const [pingMs, setPingMs] = useState(null)
       const [pinging, setPinging] = useState(false)
       const [refreshing, setRefreshing] = useState(false)
@@ -723,7 +792,32 @@ window.__ModuleLoader__.load({
 
         // Account Management List
         h('div', { className: 'ofm_account_section' },
-          h('h3', { className: 'ofm_title' }, t('accountTitle')),
+          h('div', { className: 'ofm_account_header' },
+            h('h3', { className: 'ofm_title' }, t('accountTitle')),
+            h('button', {
+              className: 'ofm_btn ofm_btn_secondary',
+              onClick: () => setShowFaq(!showFaq)
+            }, t('faqBtn'))
+          ),
+          showFaq ? h('div', { className: 'ofm_faq_card' },
+            h('div', { className: 'ofm_faq_title' }, t('faqTitle')),
+            h('div', { className: 'ofm_faq_item' },
+              h('div', { className: 'ofm_faq_q' }, 'Q1. ' + t('faqQ1')),
+              h('div', { className: 'ofm_faq_a' }, t('faqA1'))
+            ),
+            h('div', { className: 'ofm_faq_item' },
+              h('div', { className: 'ofm_faq_q' }, 'Q2. ' + t('faqQ2')),
+              h('div', { className: 'ofm_faq_a' }, t('faqA2'))
+            ),
+            h('div', { className: 'ofm_faq_item' },
+              h('div', { className: 'ofm_faq_q' }, 'Q3. ' + t('faqQ3')),
+              h('div', { className: 'ofm_faq_a' }, t('faqA3'))
+            ),
+            h('div', { className: 'ofm_faq_item' },
+              h('div', { className: 'ofm_faq_q' }, 'Q4. ' + t('faqQ4')),
+              h('div', { className: 'ofm_faq_a' }, t('faqA4'))
+            )
+          ) : null,
           h('div', { className: 'ofm_account_list' },
             (() => {
               const enabledAccounts = accounts.filter(x => x.enabled);
@@ -763,8 +857,13 @@ window.__ModuleLoader__.load({
               disabled: fetching,
               onClick: handleFetchModels
             },
-              fetching ? renderSpinner() : h('span', { className: 'ofm_btn_icon' }, '⟳'),
-              fetching ? t('fetchingModels') : t('fetchModels')
+              fetching
+                ? t('fetchingModels')
+                : (fetchStatus
+                  ? (fetchStatus.ok
+                    ? t('fetchedModelsCount').replace('{n}', String(fetchStatus.count))
+                    : t('fetchModelsFailed'))
+                  : t('fetchModels'))
             )
           ),
           h('div', { className: 'ofm_model_grid' },
