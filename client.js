@@ -51,6 +51,8 @@ window.__ModuleLoader__.load({
         faqA3: 'Google Access Token 有效期约为 1 小时。本插件内置了提前 180 秒的主动静默续期机制，使用 Google OAuth Refresh Token 在后台自动无感换取新 Token，无需反复重新登录。',
         faqQ4: '点击删除账号会彻底清除登录信息吗？',
         faqA4: '会。点击删除并确认后，系统会同时从本地状态表与所有凭据 YAML 文件中物理抹除该账号的全部 Token、密钥与关联信息，达成 0 痕迹彻底清除。',
+        faqQ5: '为什么绑定了第二个账号后额度和主账号一样或者刷不出来等显示错误？',
+        faqA5: '如果你绑定的第二个账号是先前账号的家庭共享成员，他们共享一个 Google Code 额度，只需添加任意一个账号即可，多余家庭账号会发生未知故障。',
         fetchedModelsCount: '获取了 {n} 个模型',
         fetchModelsFailed: '获取失败',
         accountActive: '主用',
@@ -98,6 +100,8 @@ window.__ModuleLoader__.load({
         faqA3: 'Google Access Tokens last about 1 hour. This plugin includes a proactive background auto-refresh mechanism (180s buffer) that silently requests fresh tokens using the OAuth refresh token.',
         faqQ4: 'Does clicking delete completely erase all login information?',
         faqA4: 'Yes. Confirming deletion physically purges the account and all associated tokens from state.json and credentials YAML files with zero trace.',
+        faqQ5: 'Why does a second account share identical quota or fail to refresh/display properly?',
+        faqA5: 'If your second account belongs to the same Google family group as the prior account, they share a single Google Code quota pool. You only need to add one account; redundant family accounts may cause unexpected issues and sync errors.',
         fetchedModelsCount: 'Fetched {n} models',
         fetchModelsFailed: 'Fetch Failed',
         accountActive: 'Primary',
@@ -865,6 +869,13 @@ window.__ModuleLoader__.load({
                 h('span', { className: 'ofm_faq_toggle_icon' }, openFaq[4] ? '▲' : '▼')
               ),
               openFaq[4] ? h('div', { className: 'ofm_faq_a' }, t('faqA4')) : null
+            ),
+            h('div', { className: 'ofm_faq_item' },
+              h('div', { className: 'ofm_faq_q', onClick: () => toggleFaq(5) },
+                h('span', null, 'Q5. ' + t('faqQ5')),
+                h('span', { className: 'ofm_faq_toggle_icon' }, openFaq[5] ? '▲' : '▼')
+              ),
+              openFaq[5] ? h('div', { className: 'ofm_faq_a' }, t('faqA5')) : null
             )
           ) : null,
           h('div', { className: 'ofm_account_list' },
