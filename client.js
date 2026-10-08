@@ -23,8 +23,8 @@ window.__ModuleLoader__.load({
     const DICT = {
       zh: {
         nav: 'Gemini 引擎',
-        title: 'Google Gemini 引擎',
-        subtitle: 'Google Cloud Code PA 官方免费通道 · 真实思考预算 · 实时双配额与故障转移',
+        title: 'Gemini enter',
+        subtitle: '',
         statusOk: '运行正常',
         stealthActive: '设备特征指纹已隔离',
         fetchModels: '获取最新模型',
@@ -38,7 +38,7 @@ window.__ModuleLoader__.load({
         addAccount: '添加账号',
         addingAccount: '正在调起…',
         quota5h: '5小时配额',
-        quotaWeekly: '周总配额',
+        quotaWeekly: '每星期配额',
         resetAt: '重置于',
         accountTitle: '账号管理',
         accountActive: '主用',
@@ -60,8 +60,8 @@ window.__ModuleLoader__.load({
       },
       en: {
         nav: 'Gemini Engine',
-        title: 'Google Gemini Engine',
-        subtitle: 'Google Cloud Code PA Official Route · Real Thinking Budget · Real-time Dual Quota',
+        title: 'Gemini enter',
+        subtitle: '',
         statusOk: 'Normal',
         stealthActive: 'Hardware Fingerprint Isolated',
         fetchModels: 'Fetch Models',
@@ -238,26 +238,21 @@ window.__ModuleLoader__.load({
   border-radius: 8px;
   background: var(--dsw-alias-bg-layer-1, rgba(255, 255, 255, 0.03));
   border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.08));
+  box-sizing: border-box;
 }
 .ofm_card_title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
   color: var(--dsw-alias-label-primary, #ffffff);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.ofm_card_desc {
-  margin: 0;
-  font-size: 12px;
-  color: var(--dsw-alias-label-secondary, #9e9e9e);
+  line-height: 1.4;
+  letter-spacing: 0.2px;
 }
 .ofm_quota_gauge {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 .ofm_gauge_bar_bg {
   width: 100%;
@@ -277,15 +272,19 @@ window.__ModuleLoader__.load({
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 12px;
+  margin-bottom: 2px;
 }
 .ofm_gauge_percent {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--dsw-alias-label-primary, #ffffff);
+  line-height: 1;
 }
 .ofm_gauge_reset {
-  color: var(--dsw-alias-label-tertiary, #757575);
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary, #858585);
+  line-height: 1;
 }
 .ofm_account_section {
   display: flex;
@@ -329,7 +328,7 @@ window.__ModuleLoader__.load({
 .ofm_models_header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
 }
 .ofm_models_count {
   font-size: 12px;
@@ -416,11 +415,11 @@ window.__ModuleLoader__.load({
 .dsh-gemini-quota-box{display:inline-flex;align-items:center;position:relative;height:28px;line-height:20px;font-size:13px;font-weight:400;color:var(--dsw-alias-label-caption,rgba(140,140,140,.85));white-space:nowrap;user-select:none;cursor:pointer;padding:0 4px;margin-right:4px;flex:none;transition:color .15s ease,opacity .2s cubic-bezier(.16,1,.3,1)}
 .dsh-gemini-quota-box:hover{color:var(--dsw-alias-label-secondary,#d4d4d4)}
 .dsh-gemini-quota-box.is-loading{opacity:.5}
-.dsh-gemini-quota-card{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translate(-50%,6px);background:var(--dsw-alias-tooltip-bg,#272730);color:var(--dsw-alias-toast-label,#fff);padding:8px 12px;border-radius:6px;font-size:11px;line-height:1.6;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.14);pointer-events:none;z-index:99999;opacity:0;visibility:hidden;display:grid;grid-template-columns:auto auto auto;column-gap:8px;row-gap:3px;align-items:center;font-variant-numeric:tabular-nums;transition:opacity .15s cubic-bezier(.16,1,.3,1),transform .15s cubic-bezier(.16,1,.3,1),visibility .15s}
+.dsh-gemini-quota-card{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translate(-50%,6px);background:var(--dsw-alias-tooltip-bg,#272730);color:var(--dsw-alias-toast-label,#fff);padding:8px 12px;border-radius:6px;font-size:11px;line-height:1.6;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.14);pointer-events:none;z-index:99999;opacity:0;visibility:hidden;display:grid;grid-template-columns:max-content max-content auto;column-gap:8px;row-gap:4px;align-items:baseline;font-variant-numeric:tabular-nums;transition:opacity .15s cubic-bezier(.16,1,.3,1),transform .15s cubic-bezier(.16,1,.3,1),visibility .15s}
 .dsh-gemini-quota-box:hover .dsh-gemini-quota-card{opacity:1;visibility:visible;transform:translate(-50%,0)}
-.dsh-col-label{color:var(--dsw-alias-label-secondary,#c0c0c0);font-weight:500}
-.dsh-col-val{color:var(--dsw-alias-label-primary,#fff);font-weight:500}
-.dsh-col-reset{color:var(--dsw-alias-label-caption,#999)}
+.dsh-col-label{color:var(--dsw-alias-label-secondary,#c0c0c0);font-weight:500;white-space:nowrap;letter-spacing:0.2px}
+.dsh-col-val{color:var(--dsw-alias-label-primary,#fff);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dsh-col-reset{color:var(--dsw-alias-label-caption,#999);white-space:nowrap}
 .dsh-val-warn{color:var(--dsw-alias-state-warn-label,#faad14)}
 .dsh-acct-head{grid-column:span 3;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1px}
 .dsh-acct-sep{grid-column:span 3;border-top:1px solid rgba(255,255,255,.1);margin:4px 0 2px}
@@ -466,9 +465,14 @@ window.__ModuleLoader__.load({
         const d = new Date(dateStr)
         const diffMs = d.getTime() - Date.now()
         if (diffMs <= 0) return '即将重置'
-        const h = Math.floor(diffMs / 3600000)
+        const totalHours = Math.floor(diffMs / 3600000)
         const m = Math.floor((diffMs % 3600000) / 60000)
-        return h > 0 ? `${h}时${m}分后` : `${m}分后`
+        if (totalHours >= 24) {
+          const days = Math.floor(totalHours / 24)
+          const remHours = totalHours % 24
+          return remHours > 0 ? `${days}天${remHours}小时后` : `${days}天后`
+        }
+        return totalHours > 0 ? `${totalHours}小时${m}分后` : `${m}分后`
       } catch {
         return ''
       }
@@ -501,8 +505,20 @@ window.__ModuleLoader__.load({
             headers: { 'Accept': 'application/json' }
           })
           const data = await res.json()
-          if (data?.ok) setQuota(data)
-        } catch {}
+          if (data?.ok) {
+            setQuota(data)
+          } else {
+            setQuota({
+              ok: false,
+              enabled: false,
+              fiveHour: { percent: 0, resetTime: '' },
+              weekly: { percent: 0, resetTime: '' },
+              accounts: []
+            })
+          }
+        } catch {
+          setQuota(null)
+        }
       }, [])
 
       const loadModels = useCallback(async () => {
@@ -605,6 +621,7 @@ window.__ModuleLoader__.load({
           const data = await res.json()
           if (data?.accounts) setAccounts(data.accounts)
           await loadQuota(true)
+          window.dispatchEvent(new CustomEvent('dsh-gemini-quota-sync'))
         } catch {}
       }
 
@@ -625,6 +642,7 @@ window.__ModuleLoader__.load({
             await loadAccounts()
           }
           await loadQuota(true)
+          window.dispatchEvent(new CustomEvent('dsh-gemini-quota-sync'))
         } catch {} finally {
           setDeletingId(null)
         }
@@ -640,7 +658,6 @@ window.__ModuleLoader__.load({
         h('div', { className: 'ofm_header' },
           h('div', { className: 'ofm_title_group' },
             h('h2', { className: 'ofm_title' }, t('title')),
-            h('p', { className: 'ofm_subtitle' }, t('subtitle')),
             h('div', { className: 'ofm_badge_group' },
               h('span', { className: 'ofm_badge ofm_badge_success' }, t('statusOk')),
               h('span', { className: 'ofm_badge' }, t('stealthActive'))
@@ -655,15 +672,6 @@ window.__ModuleLoader__.load({
             },
               addingAccount ? renderSpinner() : h('span', { className: 'ofm_btn_icon' }, '+'),
               addingAccount ? t('addingAccount') : t('addAccount')
-            ),
-            // Fetch Models Button
-            h('button', {
-              className: 'ofm_btn ofm_btn_secondary',
-              disabled: fetching,
-              onClick: handleFetchModels
-            },
-              fetching ? renderSpinner() : h('span', { className: 'ofm_btn_icon' }, '⟳'),
-              fetching ? t('fetchingModels') : t('fetchModels')
             ),
             // Ping Latency Button
             h('button', {
@@ -690,10 +698,7 @@ window.__ModuleLoader__.load({
         h('div', { className: 'ofm_grid_dual' },
           // 5-Hour Quota Card
           h('div', { className: 'ofm_card' },
-            h('div', { className: 'ofm_card_title' },
-              t('quota5h'),
-              h('span', { className: 'ofm_badge' }, '滚动周期')
-            ),
+            h('div', { className: 'ofm_card_title' }, t('quota5h')),
             h('div', { className: 'ofm_quota_gauge' },
               h('div', { className: 'ofm_gauge_info' },
                 h('span', { className: 'ofm_gauge_percent' }, `${p5}%`),
@@ -702,16 +707,12 @@ window.__ModuleLoader__.load({
               h('div', { className: 'ofm_gauge_bar_bg' },
                 h('div', { className: 'ofm_gauge_bar_val', style: { width: `${Math.min(100, Math.max(0, p5))}%` } })
               )
-            ),
-            h('p', { className: 'ofm_card_desc' }, '每 5 小时动态重置的高频推理配额')
+            )
           ),
 
           // Weekly Quota Card
           h('div', { className: 'ofm_card' },
-            h('div', { className: 'ofm_card_title' },
-              t('quotaWeekly'),
-              h('span', { className: 'ofm_badge' }, '7天周期')
-            ),
+            h('div', { className: 'ofm_card_title' }, t('quotaWeekly')),
             h('div', { className: 'ofm_quota_gauge' },
               h('div', { className: 'ofm_gauge_info' },
                 h('span', { className: 'ofm_gauge_percent' }, `${pW}%`),
@@ -720,8 +721,7 @@ window.__ModuleLoader__.load({
               h('div', { className: 'ofm_gauge_bar_bg' },
                 h('div', { className: 'ofm_gauge_bar_val', style: { width: `${Math.min(100, Math.max(0, pW))}%` } })
               )
-            ),
-            h('p', { className: 'ofm_card_desc' }, '账号每周总可用容量预算')
+            )
           )
         ),
 
@@ -758,7 +758,14 @@ window.__ModuleLoader__.load({
         h('div', { className: 'ofm_models_section' },
           h('div', { className: 'ofm_models_header' },
             h('h3', { className: 'ofm_title' }, t('modelRoster')),
-            h('span', { className: 'ofm_models_count' }, `${t('modelCount')} (${models.length})`)
+            h('button', {
+              className: 'ofm_btn ofm_btn_secondary',
+              disabled: fetching,
+              onClick: handleFetchModels
+            },
+              fetching ? renderSpinner() : h('span', { className: 'ofm_btn_icon' }, '⟳'),
+              fetching ? t('fetchingModels') : t('fetchModels')
+            )
           ),
           h('div', { className: 'ofm_model_grid' },
             models.map(m => h('div', { key: m.id, className: 'ofm_model_card' },
@@ -805,10 +812,16 @@ window.__ModuleLoader__.load({
       const fmtReset = (iso) => {
         const t = new Date(iso).getTime()
         if (isNaN(t)) return ''
-        const diff = Math.max(0, Math.floor((t - Date.now()) / 60000))
-        if (!diff) return '即将重置'
-        const h = Math.floor(diff / 60), d = Math.floor(h / 24)
-        return d ? `${d}天${h % 24 ? (h % 24) + '小时' : ''}后重置` : h ? `${h}小时${diff % 60}分后重置` : `${diff}分钟后重置`
+        const diffMs = t - Date.now()
+        if (diffMs <= 0) return '即将重置'
+        const totalHours = Math.floor(diffMs / 3600000)
+        const m = Math.floor((diffMs % 3600000) / 60000)
+        if (totalHours >= 24) {
+          const days = Math.floor(totalHours / 24)
+          const remHours = totalHours % 24
+          return remHours > 0 ? `${days}天${remHours}小时后` : `${days}天后`
+        }
+        return totalHours > 0 ? `${totalHours}小时${m}分后` : `${m}分后`
       }
 
       function buildCardHtml(q) {
@@ -835,7 +848,7 @@ window.__ModuleLoader__.load({
             ${i > 0 ? '<div class="dsh-acct-sep"></div>' : ''}
             <div class="dsh-acct-head"><span class="dsh-acct-name" title="${a.nickname}">${a.nickname}</span>${badge}</div>
             <span class="dsh-col-label">5小时配额：</span><span class="dsh-col-val ${isLow ? 'dsh-val-warn' : ''}">剩余 ${p5}</span><span class="dsh-col-reset">${r5 ? '（' + r5 + '）' : ''}</span>
-            <span class="dsh-col-label">周总配额：</span><span class="dsh-col-val">剩余 ${pW}</span><span class="dsh-col-reset">${rW ? '（' + rW + '）' : ''}</span>
+            <span class="dsh-col-label">每星期配额：</span><span class="dsh-col-val">剩余 ${pW}</span><span class="dsh-col-reset">${rW ? '（' + rW + '）' : ''}</span>
           `
         }).join('')
       }
@@ -859,9 +872,11 @@ window.__ModuleLoader__.load({
             quota = data
             lastFetch = Date.now()
             try { sessionStorage.setItem('dsh_gemini_quota_cache', JSON.stringify(data)); } catch {}
-          } else if (data?.enabled === false) {
-            quota = null
+          } else {
+            quota = data || { enabled: false }
             try { sessionStorage.removeItem('dsh_gemini_quota_cache'); } catch {}
+            const box = document.getElementById('dsh-gemini-quota-indicator')
+            if (box) box.style.display = 'none'
           }
         } catch {} finally {
           loading = false
@@ -987,6 +1002,7 @@ window.__ModuleLoader__.load({
       const poll = setInterval(() => { if (!document.hidden) fetchQuota(); }, 60000)
       const onFocus = () => { if (Date.now() - lastFetch > 30000) fetchQuota(); }
       window.addEventListener('focus', onFocus)
+      window.addEventListener('dsh-gemini-quota-sync', () => { fetchQuota(true); })
       setTimeout(() => { render(); fetchQuota(); }, 50)
     }
 
