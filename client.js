@@ -978,7 +978,7 @@ window.__ModuleLoader__.load({
         }]
         const activePrimaryId = accs.find(a => a.enabled !== false && a.id === q.primaryAccountId)?.id || accs.find(a => a.enabled !== false)?.id
 
-        return accs.map((a, i) => {
+        return accs.slice(0, 2).map((a, i) => {
           const isDisabled = a.enabled === false
           const p5 = isDisabled ? '已停用' : (a.fiveHour ? `${a.fiveHour.percent}%` : (a.ok === false ? '不可用' : '—'))
           const pW = isDisabled ? '已停用' : (a.weekly ? `${a.weekly.percent}%` : (a.ok === false ? '不可用' : '—'))
