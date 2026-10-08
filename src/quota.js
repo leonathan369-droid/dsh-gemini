@@ -188,8 +188,7 @@ export async function fetchOne(token, project = 'aicode-consumers') {
  * Extracts canonical base ID and tier from concrete model identifier
  */
 function maskEmail(str) {
-  if (!str || typeof str !== 'string') return str;
-  return str.replace(/^([a-zA-Z0-9._%+-])[^@]*(@.+)$/, '$1***$2');
+  return str || '';
 }
 
 function extractCanonical(id) {

@@ -24,7 +24,6 @@ window.__ModuleLoader__.load({
       zh: {
         nav: 'Gemini 引擎',
         title: 'Gemini enter',
-        subtitle: '',
         statusOk: '运行正常',
         stealthActive: '设备特征指纹已隔离',
         fetchModels: '获取最新模型',
@@ -50,7 +49,6 @@ window.__ModuleLoader__.load({
         confirmDelete: '确定彻底删除该账号及所有关联凭据吗？删除后无法恢复。',
         deletingAccount: '正在删除…',
         modelRoster: '可用模型清单',
-        modelCount: '已发现可用模型',
         modelThinking: '深度思考',
         modelVision: '多模态视觉',
         modelRecommended: '官方推荐',
@@ -61,7 +59,6 @@ window.__ModuleLoader__.load({
       en: {
         nav: 'Gemini Engine',
         title: 'Gemini enter',
-        subtitle: '',
         statusOk: 'Normal',
         stealthActive: 'Hardware Fingerprint Isolated',
         fetchModels: 'Fetch Models',
@@ -87,7 +84,6 @@ window.__ModuleLoader__.load({
         confirmDelete: 'Completely delete this account and all associated credentials? This cannot be undone.',
         deletingAccount: 'Deleting…',
         modelRoster: 'Available Models',
-        modelCount: 'Available models discovered',
         modelThinking: 'Thinking',
         modelVision: 'Vision',
         modelRecommended: 'Recommended',
@@ -127,12 +123,7 @@ window.__ModuleLoader__.load({
   letter-spacing: -0.01em;
   color: var(--dsw-alias-label-primary, #ffffff);
 }
-.ofm_subtitle {
-  margin: 0;
-  font-size: 13px;
-  color: var(--dsw-alias-label-secondary, #9e9e9e);
-  line-height: 1.5;
-}
+
 .ofm_badge_group {
   display: flex;
   gap: 8px;
@@ -330,10 +321,7 @@ window.__ModuleLoader__.load({
   justify-content: space-between;
   align-items: center;
 }
-.ofm_models_count {
-  font-size: 12px;
-  color: var(--dsw-alias-label-tertiary, #757575);
-}
+
 .ofm_model_grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -423,7 +411,7 @@ window.__ModuleLoader__.load({
 .dsh-val-warn{color:var(--dsw-alias-state-warn-label,#faad14)}
 .dsh-acct-head{grid-column:span 3;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1px}
 .dsh-acct-sep{grid-column:span 3;border-top:1px solid rgba(255,255,255,.1);margin:4px 0 2px}
-.dsh-acct-name{font-weight:500;color:var(--dsw-alias-label-primary,#fff);max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.dsh-acct-name{font-weight:500;color:var(--dsw-alias-label-primary,#fff);max-width:320px;overflow:hidden;text-overflow:ellipsis}
 .dsh-badge-primary{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(66,133,244,.25);color:#8ab4f8}
 .dsh-badge-standby{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.08);color:var(--dsw-alias-label-caption,#999)}.dsh-badge-disabled{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.05);color:var(--dsw-alias-label-caption,#777)}
 .dsh-badge-warn{font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(250,173,20,.2);color:#faad14}
@@ -431,11 +419,13 @@ window.__ModuleLoader__.load({
 
     function ensureStyles() {
       if (typeof document === 'undefined') return
-      if (document.getElementById('dsh-gemini-style')) return
-      const s = document.createElement('style')
-      s.id = 'dsh-gemini-style'
+      let s = document.getElementById('dsh-gemini-style')
+      if (!s) {
+        s = document.createElement('style')
+        s.id = 'dsh-gemini-style'
+        document.head.appendChild(s)
+      }
       s.textContent = CSS
-      document.head.appendChild(s)
     }
 
     // ── Spinner SVG Helper ───────────────────────────────────────────────────
@@ -861,19 +851,18 @@ window.__ModuleLoader__.load({
         const box = document.getElementById('dsh-gemini-quota-indicator')
         if (force && box) box.classList.add('is-loading')
         try {
-          const res = await window.fetch('/api/gemini-quota', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ force }),
-            signal: AbortSignal.timeout(4500)
+          const url = force ? '/api/gemini/quota?force=true' : '/api/gemini/quota'
+          const res = await window.fetch(url, {
+            headers: { 'Accept': 'application/json' },
+            signal: AbortSignal.timeout(10000)
           })
           const data = await res.json().catch(() => null)
           if (data?.ok) {
             quota = data
             lastFetch = Date.now()
             try { sessionStorage.setItem('dsh_gemini_quota_cache', JSON.stringify(data)); } catch {}
-          } else {
-            quota = data || { enabled: false }
+          } else if (data && data.enabled === false) {
+            quota = data
             try { sessionStorage.removeItem('dsh_gemini_quota_cache'); } catch {}
             const box = document.getElementById('dsh-gemini-quota-indicator')
             if (box) box.style.display = 'none'
