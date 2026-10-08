@@ -10,7 +10,7 @@ const CRED_CANDIDATES = [
   path.join(os.homedir(), '.dsh/profiles/desktop/credentials.yaml')
 ];
 const MODELS_FILE = path.join(os.homedir(), '.dsh/channel-pack/gemini-models.json');
-const QUOTA_URL = 'https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota';
+const QUOTA_URL = 'https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary';
 const MODELS_URL = 'https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels';
 
 let cache = null;
@@ -91,9 +91,9 @@ export async function fetchOne(token) {
     });
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
     const data = await res.json();
-    const buckets = data?.buckets || [];
-    const b5 = buckets.find(b => b.bucketType === 'HOURLY' || b.bucketType?.includes('HOUR'));
-    const bW = buckets.find(b => b.bucketType === 'WEEKLY' || b.bucketType?.includes('WEEK'));
+    const b = (data?.groups || []).flatMap(g => g?.buckets || []);
+    const b5 = b.find(x => x?.bucketId === 'gemini-5h' || x?.bucketType?.includes('HOUR'));
+    const bW = b.find(x => x?.bucketId === 'gemini-weekly' || x?.bucketType?.includes('WEEK'));
     return {
       ok: true,
       fiveHour: b5 ? { percent: Math.round((b5.remainingFraction || 0) * 100), resetTime: b5.resetTime } : null,
@@ -107,6 +107,11 @@ export async function fetchOne(token) {
 /**
  * Extracts canonical base ID and tier from concrete model identifier
  */
+function maskEmail(str) {
+  if (!str || typeof str !== 'string') return str;
+  return str.replace(/^([a-zA-Z0-9._%+-])[^@]*(@.+)$/, '$1***$2');
+}
+
 function extractCanonical(id) {
   const effortTiers = ['extra-low', 'low', 'medium', 'high', 'tiered'];
   for (const tier of effortTiers) {
@@ -229,12 +234,12 @@ export async function fetchQuota(force = false) {
       const settled = await Promise.allSettled(accs.map(async (a, index) => {
         const token = getToken(a.credentialRef);
         if (!token) {
-          return { id: a.id, nickname: a.nickname, enabled: a.enabled, isPrimary: index === 0, ok: false, error: 'no_token' };
+          return { id: a.id, nickname: maskEmail(a.nickname), enabled: a.enabled, isPrimary: index === 0, ok: false, error: 'no_token' };
         }
         const q = await fetchOne(token);
         return {
           id: a.id,
-          nickname: a.nickname,
+          nickname: maskEmail(a.nickname),
           enabled: a.enabled,
           isPrimary: index === 0,
           ok: q.ok,
@@ -246,7 +251,7 @@ export async function fetchQuota(force = false) {
 
       const results = settled.map((s, idx) => s.status === 'fulfilled' ? s.value : {
         id: accs[idx].id,
-        nickname: accs[idx].nickname,
+        nickname: maskEmail(accs[idx].nickname),
         enabled: accs[idx].enabled,
         isPrimary: idx === 0,
         ok: false,
@@ -259,7 +264,7 @@ export async function fetchQuota(force = false) {
         enabled: true,
         provider: 'gemini',
         primaryAccountId: primary?.id,
-        primaryAccount: primary?.nickname,
+        primaryAccount: maskEmail(primary?.nickname),
         fiveHour: primary?.fiveHour || { percent: 0, resetTime: '' },
         weekly: primary?.weekly || { percent: 0, resetTime: '' },
         accounts: results,
