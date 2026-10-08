@@ -46,6 +46,9 @@ window.__ModuleLoader__.load({
         accountDisabled: '已停用',
         enableAccount: '启用',
         disableAccount: '停用',
+        deleteAccount: '删除',
+        confirmDelete: '确定彻底删除该账号及所有关联凭据吗？删除后无法恢复。',
+        deletingAccount: '正在删除…',
         modelRoster: '可用模型清单',
         modelCount: '已发现可用模型',
         modelThinking: '深度思考',
@@ -80,6 +83,9 @@ window.__ModuleLoader__.load({
         accountDisabled: 'Disabled',
         enableAccount: 'Enable',
         disableAccount: 'Disable',
+        deleteAccount: 'Delete',
+        confirmDelete: 'Completely delete this account and all associated credentials? This cannot be undone.',
+        deletingAccount: 'Deleting…',
         modelRoster: 'Available Models',
         modelCount: 'Available models discovered',
         modelThinking: 'Thinking',
@@ -191,6 +197,18 @@ window.__ModuleLoader__.load({
   background: var(--dsw-alias-bg-layer-3, rgba(255, 255, 255, 0.1));
   border-color: var(--dsw-alias-border-l2, rgba(255, 255, 255, 0.2));
 }
+
+.ofm_btn_danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.ofm_btn_danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
 .ofm_btn_success {
   background: rgba(16, 185, 129, 0.15);
   color: #34d399;
@@ -474,6 +492,7 @@ window.__ModuleLoader__.load({
       const [refreshing, setRefreshing] = useState(false)
       const [justRefreshed, setJustRefreshed] = useState(false)
       const [addingAccount, setAddingAccount] = useState(false)
+      const [deletingId, setDeletingId] = useState(null)
 
       const loadQuota = useCallback(async (force = false) => {
         try {
@@ -589,6 +608,28 @@ window.__ModuleLoader__.load({
         } catch {}
       }
 
+      
+      const handleDeleteAccount = async (id) => {
+        if (!window.confirm(t('confirmDelete'))) return
+        setDeletingId(id)
+        try {
+          const res = await window.fetch('/api/gemini/account/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+          })
+          const data = await res.json()
+          if (data?.ok && Array.isArray(data.accounts)) {
+            setAccounts(data.accounts)
+          } else {
+            await loadAccounts()
+          }
+          await loadQuota(true)
+        } catch {} finally {
+          setDeletingId(null)
+        }
+      }
+
       const p5 = quota?.fiveHour?.percent ?? 0
       const pW = quota?.weekly?.percent ?? 0
       const r5 = formatReset(quota?.fiveHour?.resetTime)
@@ -701,7 +742,12 @@ window.__ModuleLoader__.load({
                   h('button', {
                     className: a.enabled ? 'ofm_btn ofm_btn_secondary' : 'ofm_btn ofm_btn_primary',
                     onClick: () => handleToggleAccount(a.id, !a.enabled)
-                  }, a.enabled ? t('disableAccount') : t('enableAccount'))
+                  }, a.enabled ? t('disableAccount') : t('enableAccount')),
+                  h('button', {
+                    className: 'ofm_btn ofm_btn_danger',
+                    disabled: deletingId === a.id,
+                    onClick: () => handleDeleteAccount(a.id)
+                  }, deletingId === a.id ? t('deletingAccount') : t('deleteAccount'))
                 )
               )
             })

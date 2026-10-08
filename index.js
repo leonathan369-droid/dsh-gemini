@@ -16,6 +16,7 @@ import {
   getAccounts,
   getRawAccounts,
   toggleAccount,
+  deleteAccount,
   persistAddedAccount,
   getToken,
   fetchOne
@@ -133,6 +134,26 @@ export function apply(ctx, config = {}) {
         }
 
         // Account management: Add account via Google OAuth flow
+        
+        // Account management: Delete account completely
+        if (p === '/account/delete' || p === '/account/delete/') {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', () => {
+            try {
+              const parsed = JSON.parse(body || '{}');
+              const { id } = parsed;
+              if (!id) return res.end(JSON.stringify({ ok: false, error: 'missing_account_id' }));
+              const result = deleteAccount(id);
+              res.end(JSON.stringify(result));
+            } catch (err) {
+              res.writeHead(400);
+              res.end(JSON.stringify({ ok: false, error: err.message }));
+            }
+          });
+          return;
+        }
+
         if (p === '/account/add' || p === '/account/add/') {
           try {
             if (!channelPackModule?.startGeminiOAuthFlow) {

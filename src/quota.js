@@ -82,6 +82,42 @@ export const getToken = (ref) => {
   return null;
 };
 
+
+export async function refreshTokenForRef(ref) {
+  for (const credPath of CRED_CANDIDATES) {
+    try {
+      if (!fs.existsSync(credPath)) continue;
+      const txt = fs.readFileSync(credPath, "utf8");
+      const m = txt.match(new RegExp(`(${ref}:\\s*['"]?)({.+?})(['"]?\\s*$)`, "m")) || txt.match(new RegExp(`(${ref}:\\s*['"]?)({.*?})(['"]?)`, "s"));
+      if (m) {
+        const parsed = JSON.parse(m[2].replace(/\n/g, " "));
+        if (!parsed?.refresh_token) return null;
+        const res = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com",
+            client_secret: "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",
+            refresh_token: parsed.refresh_token,
+            grant_type: "refresh_token"
+          }),
+          signal: AbortSignal.timeout(6000)
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (data?.access_token) {
+          parsed.access_token = data.access_token;
+          if (data.expires_in) parsed.expiry = new Date(Date.now() + data.expires_in * 1000).toISOString();
+          const updated = `${m[1]}${JSON.stringify(parsed)}${m[3]}`;
+          fs.writeFileSync(credPath, txt.replace(m[0], updated), "utf8");
+          return data.access_token;
+        }
+      }
+    } catch {}
+  }
+  return null;
+}
+
 export async function fetchOne(token) {
   try {
     const res = await fetch(QUOTA_URL, {
@@ -233,11 +269,15 @@ export async function fetchQuota(force = false) {
 
       // Parallel concurrent execution for all configured accounts
       const settled = await Promise.allSettled(accs.map(async (a, index) => {
-        const token = getToken(a.credentialRef);
+        let token = getToken(a.credentialRef);
         if (!token) {
           return { id: a.id, nickname: maskEmail(a.nickname), enabled: a.enabled, isPrimary: index === 0, ok: false, error: 'no_token' };
         }
-        const q = await fetchOne(token);
+        let q = await fetchOne(token);
+        if (q.error === 'HTTP 401') {
+          const fresh = await refreshTokenForRef(a.credentialRef);
+          if (fresh) q = await fetchOne(fresh);
+        }
         return {
           id: a.id,
           nickname: maskEmail(a.nickname),
@@ -310,6 +350,63 @@ export const toggleAccount = (accountId, enabled) => {
   }
 };
 
+
+export const deleteAccount = (accountId) => {
+  try {
+    const raw = JSON.parse(fs.readFileSync(STATE, "utf8"));
+    const idx = (raw.accounts || []).findIndex(a => a.id === accountId && a.provider === "gemini");
+    if (idx === -1) return { ok: false, error: "account_not_found" };
+
+    const target = raw.accounts[idx];
+    const ref = target.credentialRef;
+
+    // 1. Remove from state.json
+    raw.accounts.splice(idx, 1);
+    if (raw.primaryAccountId === accountId) {
+      const next = raw.accounts.find(a => a.provider === "gemini" && a.enabled);
+      raw.primaryAccountId = next ? next.id : null;
+    }
+    fs.writeFileSync(STATE, JSON.stringify(raw, null, 2) + "\n", "utf8");
+
+    // 2. Remove from all credential YAML files
+    if (ref) {
+      for (const credPath of CRED_CANDIDATES) {
+        if (!fs.existsSync(credPath)) continue;
+        const txt = fs.readFileSync(credPath, "utf8");
+        const lines = txt.split("\n");
+        const resultLines = [];
+        let skipping = false;
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const trimmed = line.trim();
+          if (trimmed.startsWith(ref + ":")) {
+            skipping = true;
+            continue;
+          }
+          if (skipping) {
+            if (/^  [A-Za-z0-9_-]+:/.test(line) || /^[A-Za-z0-9_-]+:/.test(line)) {
+              skipping = false;
+              resultLines.push(line);
+            }
+            continue;
+          }
+          resultLines.push(line);
+        }
+        const cleaned = resultLines.join("\n");
+        if (cleaned !== txt) {
+          fs.writeFileSync(credPath, cleaned, "utf8");
+        }
+      }
+    }
+
+    // 3. Clear memory caches
+    cache = null;
+    return { ok: true, deletedId: accountId, accounts: getRawAccounts() };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+};
+
 export const persistAddedAccount = (credential, email = null) => {
   try {
     const suffix = crypto.randomBytes(4).toString('hex').toUpperCase();
@@ -318,9 +415,16 @@ export const persistAddedAccount = (credential, email = null) => {
     const userEmail = email || credential.email || id;
 
     const credPath = path.join(os.homedir(), '.dsh/.credentials.yaml');
-    let credContent = fs.existsSync(credPath) ? fs.readFileSync(credPath, 'utf8') : '';
-    const yamlEntry = `\n${refName}: '${JSON.stringify(credential)}'\n`;
-    fs.writeFileSync(credPath, credContent + yamlEntry, 'utf8');
+    if (fs.existsSync(credPath)) {
+      let credContent = fs.readFileSync(credPath, 'utf8');
+      const entry = `  ${refName}: '${JSON.stringify(credential)}'\n`;
+      if (credContent.includes('refs:\n')) {
+        credContent = credContent.replace('refs:\n', `refs:\n${entry}`);
+      } else {
+        credContent += `\nrefs:\n${entry}`;
+      }
+      fs.writeFileSync(credPath, credContent, 'utf8');
+    }
 
     const raw = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : { accounts: [] };
     if (!Array.isArray(raw.accounts)) raw.accounts = [];
