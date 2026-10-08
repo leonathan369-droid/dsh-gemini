@@ -131,9 +131,6 @@ export function apply(ctx, config = {}) {
           try {
             const { id, enabled } = await readJsonBody(req);
             const pool = channelPackModule?.getAccountPool();
-            if (pool) {
-              try { await pool.updateAccount(id, { enabled: Boolean(enabled) }); } catch {}
-            }
             const result = toggleAccount(id, enabled);
             try { pool?.reload?.(); } catch {}
             return res.end(JSON.stringify({ ...result, accounts: getRawAccounts() }));
@@ -149,9 +146,6 @@ export function apply(ctx, config = {}) {
             const { id } = await readJsonBody(req);
             if (!id) return res.end(JSON.stringify({ ok: false, error: 'missing_account_id' }));
             const pool = channelPackModule?.getAccountPool();
-            if (pool) {
-              try { await pool.removeAccount(id); } catch {}
-            }
             const result = deleteAccount(id);
             try { pool?.reload?.(); } catch {}
             return res.end(JSON.stringify(result));
@@ -170,6 +164,8 @@ export function apply(ctx, config = {}) {
             const started = await channelPackModule.startGeminiOAuthFlow();
             started.result.then(async credential => {
               persistAddedAccount(credential);
+              const pool = channelPackModule?.getAccountPool();
+              try { pool?.reload?.(); } catch {}
               logger.info?.('[dsh-gemini] Google OAuth account added successfully');
             }).catch(err => {
               logger.warn?.(`[dsh-gemini] Google OAuth failed: ${err?.message || err}`);

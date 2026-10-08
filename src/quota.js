@@ -75,7 +75,52 @@ export const DEFAULT_MODELS = [
   }
 ];
 
+/**
+ * Self-healing sync: reconciles valid Gemini credentials from credentials.yaml
+ * into state.json if they were ever dropped or overwritten by external processes.
+ */
+export const syncMissingAccountsFromCredentials = () => {
+  try {
+    const raw = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : { accounts: [] };
+    if (!Array.isArray(raw.accounts)) raw.accounts = [];
+    let changed = false;
+
+    for (const credPath of CRED_CANDIDATES) {
+      if (!fs.existsSync(credPath)) continue;
+      const txt = fs.readFileSync(credPath, 'utf8');
+      const matches = txt.matchAll(/^[ 	]*(GEMINI_ACCOUNT_[A-Za-z0-9_]+):\s*['"]?({.+?})['"]?\s*$/gm);
+      for (const m of matches) {
+        const refName = m[1];
+        const exists = raw.accounts.some(a => a.credentialRef === refName);
+        if (!exists) {
+          try {
+            const parsed = JSON.parse(m[2]);
+            const suffix = refName.replace('GEMINI_ACCOUNT_', '').toLowerCase();
+            const id = 'gemini-' + suffix;
+            raw.accounts.push({
+              id,
+              provider: 'gemini',
+              nickname: parsed.email || id,
+              enabled: true,
+              credentialRef: refName,
+              refreshable: Boolean(parsed.refresh_token),
+              createdAt: Date.now(),
+              expiresAt: parsed.expiry ? Date.parse(parsed.expiry) : undefined
+            });
+            changed = true;
+          } catch {}
+        }
+      }
+    }
+
+    if (changed) {
+      fs.writeFileSync(STATE, JSON.stringify(raw, null, 2) + '\n', 'utf8');
+    }
+  } catch {}
+};
+
 export const getAccounts = () => {
+  syncMissingAccountsFromCredentials();
   try {
     return (JSON.parse(fs.readFileSync(STATE, 'utf8')).accounts || []).filter(a => a.provider === 'gemini' && a.enabled);
   } catch { return []; }
@@ -382,6 +427,7 @@ export async function fetchQuota(force = false) {
   return inFlight;
 }
 export const getRawAccounts = () => {
+  syncMissingAccountsFromCredentials();
   try {
     const raw = JSON.parse(fs.readFileSync(STATE, 'utf8'));
     return (raw.accounts || []).filter(a => a.provider === 'gemini').map(a => ({
@@ -431,7 +477,7 @@ export const deleteAccount = (accountId) => {
       const next = raw.accounts.find(a => a.provider === 'gemini' && a.enabled);
       raw.primaryAccountId = next ? next.id : null;
     }
-    fs.writeFileSync(STATE, JSON.stringify(raw, null, 2) + '\n', 'utf8');
+      fs.writeFileSync(STATE, JSON.stringify(raw, null, 2) + '\n', 'utf8');
 
     // 2. Remove from all credential YAML files using deterministic multiline block regex
     if (ref) {
@@ -487,7 +533,7 @@ export const persistAddedAccount = (credential, email = null) => {
       createdAt: Date.now(),
       expiresAt: credential.expires_in ? Date.now() + credential.expires_in * 1000 : undefined
     });
-    fs.writeFileSync(STATE, JSON.stringify(raw, null, 2) + '\n', 'utf8');
+      fs.writeFileSync(STATE, JSON.stringify(raw, null, 2) + '\n', 'utf8');
     cache = null;
     return { ok: true, accountId: id, email: userEmail };
   } catch (err) {
