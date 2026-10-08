@@ -12,16 +12,11 @@
     "./locale/*.json": "./locale/*.json"
   },
   "scripts": {
-    "test": "node scripts/test-all.mjs",
-    "test:contributor": "node scripts/test-all.mjs --mode contributor",
-    "test:release": "node scripts/test-all.mjs --mode release",
-    "channel-pack": "node scripts/build-channel-pack.mjs",
-    "selftest": "node scripts/host-selftest.mjs"
+    "test": "node scripts/test-all.mjs"
   },
   "files": [
     "index.js",
     "client.js",
-    "adapter",
     "src",
     "vendor/channel-pack/pack.js",
     "vendor/channel-pack/NOTICE.md",
@@ -29,7 +24,8 @@
     "locale",
     "icon.svg",
     "cordis.patch.yml",
-    "LICENSE"
+    "LICENSE",
+    "README.md"
   ],
   "keywords": [
     "dsh",
