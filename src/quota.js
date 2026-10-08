@@ -462,39 +462,46 @@ export const toggleAccount = (accountId, enabled) => {
   }
 };
 
+export function purgeCredentialFromYaml(ref) {
+  if (!ref) return;
+  const escapedRef = ref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp('^[ \t]*' + escapedRef + ':[^\n]*(?:\n(?![ \t]{0,2}[A-Za-z0-9_-]+:)[^\n]*)*\n?', 'm');
+  for (const credPath of CRED_CANDIDATES) {
+    try {
+      if (!fs.existsSync(credPath)) continue;
+      const txt = fs.readFileSync(credPath, 'utf8');
+      const cleaned = txt.replace(pattern, '');
+      if (cleaned !== txt) {
+        fs.writeFileSync(credPath, cleaned, 'utf8');
+      }
+    } catch {}
+  }
+}
+
 export const deleteAccount = (accountId) => {
   try {
-    const raw = JSON.parse(fs.readFileSync(STATE, 'utf8'));
+    const raw = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : { accounts: [] };
     const idx = (raw.accounts || []).findIndex(a => a.id === accountId && a.provider === 'gemini');
-    if (idx === -1) return { ok: false, error: 'account_not_found' };
 
-    const target = raw.accounts[idx];
-    const ref = target.credentialRef;
-
-    // 1. Remove from state.json
-    raw.accounts.splice(idx, 1);
-    if (raw.primaryAccountId === accountId) {
-      const next = raw.accounts.find(a => a.provider === 'gemini' && a.enabled);
-      raw.primaryAccountId = next ? next.id : null;
-    }
-      fs.writeFileSync(STATE, JSON.stringify(raw, null, 2) + '\n', 'utf8');
-
-    // 2. Remove from all credential YAML files using deterministic multiline block regex
-    if (ref) {
-      const escapedRef = ref.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // Matches: ^  <ref>: ... including all continuation lines up to next sibling key or unindented header
-      const pattern = new RegExp(`^[ \t]*${escapedRef}:[^\n]*(?:\n(?![ \t]{0,2}[A-Za-z0-9_-]+:)[^\n]*)*\n?`, 'm');
-      for (const credPath of CRED_CANDIDATES) {
-        if (!fs.existsSync(credPath)) continue;
-        const txt = fs.readFileSync(credPath, 'utf8');
-        const cleaned = txt.replace(pattern, '');
-        if (cleaned !== txt) {
-          fs.writeFileSync(credPath, cleaned, 'utf8');
-        }
+    let ref = null;
+    if (idx !== -1) {
+      const target = raw.accounts[idx];
+      ref = target.credentialRef;
+      raw.accounts.splice(idx, 1);
+      if (raw.primaryAccountId === accountId) {
+        const next = raw.accounts.find(a => a.provider === 'gemini' && a.enabled);
+        raw.primaryAccountId = next ? next.id : null;
       }
+      fs.writeFileSync(STATE, JSON.stringify(raw, null, 2) + "\n", "utf8");
+    } else {
+      const suffix = accountId.replace(/^gemini-/, '').toUpperCase();
+      ref = 'GEMINI_ACCOUNT_' + suffix;
     }
 
-    // 3. Clear memory caches
+    if (ref) {
+      purgeCredentialFromYaml(ref);
+    }
+
     cache = null;
     return { ok: true, deletedId: accountId, accounts: getRawAccounts() };
   } catch (err) {
