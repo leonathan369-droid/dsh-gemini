@@ -63,7 +63,7 @@ export const DEFAULT_MODELS = [
 
 export const getAccounts = () => {
   try {
-    return (JSON.parse(fs.readFileSync(STATE, 'utf8')).accounts || []).filter(a => a.provider === 'gemini');
+    return (JSON.parse(fs.readFileSync(STATE, 'utf8')).accounts || []).filter(a => a.provider === 'gemini' && a.enabled);
   } catch { return []; }
 };
 
@@ -124,7 +124,7 @@ export async function fetchOne(token) {
       method: 'POST',
       headers: getIdentityHeaderObject(token),
       body: JSON.stringify({ project: 'aicode-consumers' }),
-      signal: AbortSignal.timeout(4500)
+      signal: AbortSignal.timeout(8000)
     });
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
     const data = await res.json();
@@ -256,56 +256,23 @@ export function saveCachedModels(models) {
  * Concurrent multi-account quota polling via Promise.allSettled
  */
 export async function fetchQuota(force = false) {
-  const now = Date.now();
-  if (!force && cache && (now - lastFetch < 30000)) return cache;
+  const accounts = getAccounts();
+  if (!accounts.length) {
+    cache = null;
+    return { ok: false, enabled: false, error: '未启用账号', provider: 'gemini', accounts: [] };
+  }
+
+  const sig = JSON.stringify(accounts.map(a => [a.id, a.enabled, a.credentialRef, a.modelRateLimits]));
+  if (cache && cache.sig !== sig) { cache = null; force = true; }
+  if (!force && cache && Date.now() - lastFetch < 15000) return cache;
   if (inFlight) return inFlight;
 
   inFlight = (async () => {
     try {
-            const accs = getAccounts();
-      if (!accs.length) {
-        return { ok: false, error: 'no_account', enabled: false, provider: 'gemini', accounts: [] };
-      }
-
-      const enabledAccs = accs.filter(a => a.enabled !== false);
-      if (!enabledAccs.length) {
-        cache = {
-          ok: false,
-          enabled: false,
-          provider: 'gemini',
-          primaryAccountId: null,
-          primaryAccount: '全部账号已停用',
-          fiveHour: { percent: 0, resetTime: '' },
-          weekly: { percent: 0, resetTime: '' },
-          accounts: accs.map(a => ({
-            id: a.id,
-            nickname: maskEmail(a.nickname),
-            enabled: false,
-            isPrimary: false,
-            ok: false,
-            error: 'account_disabled'
-          })),
-          fetchedAt: Date.now()
-        };
-        lastFetch = Date.now();
-        return cache;
-      }
-
-      // Parallel concurrent execution for all configured accounts
-      const settled = await Promise.allSettled(accs.map(async (a) => {
-        if (!a.enabled) {
-          return {
-            id: a.id,
-            nickname: maskEmail(a.nickname),
-            enabled: false,
-            isPrimary: false,
-            ok: false,
-            error: 'account_disabled'
-          };
-        }
+      const settled = await Promise.allSettled(accounts.map(async (a, index) => {
         let token = getToken(a.credentialRef);
         if (!token) {
-          return { id: a.id, nickname: maskEmail(a.nickname), enabled: true, isPrimary: false, ok: false, error: 'no_token' };
+          return { id: a.id, nickname: maskEmail(a.nickname), enabled: true, isPrimary: index === 0, ok: false, error: 'no_token' };
         }
         let q = await fetchOne(token);
         if (q.error === 'HTTP 401') {
@@ -316,7 +283,7 @@ export async function fetchQuota(force = false) {
           id: a.id,
           nickname: maskEmail(a.nickname),
           enabled: true,
-          isPrimary: false,
+          isPrimary: index === 0,
           ok: q.ok,
           fiveHour: q.fiveHour,
           weekly: q.weekly,
@@ -324,30 +291,29 @@ export async function fetchQuota(force = false) {
         };
       }));
 
-      const results = settled.map((s, idx) => s.status === 'fulfilled' ? s.value : {
-        id: accs[idx].id,
-        nickname: maskEmail(accs[idx].nickname),
-        enabled: Boolean(accs[idx].enabled),
-        isPrimary: false,
+      const list = settled.map((r, i) => r.status === 'fulfilled' ? r.value : {
+        id: accounts[i].id,
+        nickname: maskEmail(accounts[i].nickname),
+        enabled: true,
+        isPrimary: i === 0,
         ok: false,
-        error: s.reason?.message || 'timeout'
+        error: r.reason?.message || 'timeout'
       });
 
-      const primary = results.find(r => r.ok && r.enabled);
-      const isOverallEnabled = Boolean(primary);
-
+      const primary = list.find(a => a.isPrimary) || list[0];
+      lastFetch = Date.now();
       cache = {
-        ok: isOverallEnabled,
-        enabled: isOverallEnabled,
+        ok: Boolean(primary?.ok),
+        enabled: true,
         provider: 'gemini',
-        primaryAccountId: primary ? primary.id : null,
-        primaryAccount: primary ? maskEmail(primary.nickname) : '无可用启用账号',
+        sig,
+        primaryAccountId: primary?.id,
+        primaryAccount: primary?.nickname,
         fiveHour: primary?.fiveHour || { percent: 0, resetTime: '' },
         weekly: primary?.weekly || { percent: 0, resetTime: '' },
-        accounts: results.map(r => ({ ...r, isPrimary: Boolean(primary && r.id === primary.id) })),
-        fetchedAt: Date.now()
+        accounts: list,
+        fetchedAt: lastFetch
       };
-      lastFetch = Date.now();
       return cache;
     } finally {
       inFlight = null;
