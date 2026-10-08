@@ -33,6 +33,11 @@ export function apply(ctx, config = {}) {
     let stopped = false;
     scoped.effect(() => () => { stopped = true; }, 'dsh-gemini: channel pack');
 
+    // Prevent redundant port 8326 gateway binding collision with upstream or other plugins
+    if (!process.env.DSH_OPENAI_GATEWAY_ENABLED) {
+      process.env.DSH_OPENAI_GATEWAY_ENABLED = '0';
+    }
+
     void import('./vendor/channel-pack/pack.js').then(pack => {
       if (stopped) return;
       channelPackModule = pack;

@@ -5,7 +5,7 @@
  *   2. every literal `t('key')` in the source exists in BOTH dictionaries, no
  *      dictionary key goes unused, and the two key sets match — the shell shows
  *      the raw key when a lookup misses, which reads as a broken UI;
- *   3. every `ofm_*` class the code emits is defined in the injected stylesheet,
+ *   3. every `dge_*` class the code emits is defined in the injected stylesheet,
  *      and every declared rule is reachable.
  *
  * Run: node scripts/client-lint.mjs
@@ -111,7 +111,7 @@ for (const language of ['zh', 'en']) {
 const cssStart = source.indexOf('const CSS = `')
 const css = source.slice(cssStart + 'const CSS = `'.length, source.indexOf('\n`', cssStart))
 if (css.length === 0) problems.push('the stylesheet block was not located')
-const declared = new Set([...css.matchAll(/\.(ofm_[A-Za-z0-9_]+)/g)].map(match => match[1]))
+const declared = new Set([...css.matchAll(/\.(dge_[A-Za-z0-9_]+)/g)].map(match => match[1]))
 
 const referenced = new Set()
 // Any quoted or templated run that carries a class name. The scan walks the
@@ -162,7 +162,7 @@ function* stringRuns(src) {
   }
 }
 for (const run of stringRuns(source)) {
-  for (const token of run.split(/[\s,]+/)) if (/^ofm_[A-Za-z0-9_]+$/.test(token)) referenced.add(token)
+  for (const token of run.split(/[\s,]+/)) if (/^dge_[A-Za-z0-9_]+$/.test(token)) referenced.add(token)
 }
 
 for (const name of referenced) if (!declared.has(name)) problems.push(`.${name} is emitted but never styled`)

@@ -122,7 +122,7 @@ window.__ModuleLoader__.load({
     }
 
     const CSS = `
-.ofm_container {
+.dge_container {
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -130,7 +130,7 @@ window.__ModuleLoader__.load({
   color: var(--dsw-alias-label-primary, #e0e0e0);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-.ofm_header {
+.dge_header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -139,12 +139,12 @@ window.__ModuleLoader__.load({
   padding-bottom: 20px;
   border-bottom: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.08));
 }
-.ofm_title_group {
+.dge_title_group {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.ofm_title {
+.dge_title {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
@@ -152,12 +152,12 @@ window.__ModuleLoader__.load({
   color: var(--dsw-alias-label-primary, #ffffff);
 }
 
-.ofm_badge_group {
+.dge_badge_group {
   display: flex;
   gap: 8px;
   margin-top: 4px;
 }
-.ofm_badge {
+.dge_badge {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
@@ -168,23 +168,23 @@ window.__ModuleLoader__.load({
   border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.1));
   color: var(--dsw-alias-label-secondary, #b0b0b0);
 }
-.ofm_badge_success {
+.dge_badge_success {
   background: rgba(16, 185, 129, 0.12);
   border-color: rgba(16, 185, 129, 0.25);
   color: #34d399;
 }
-.ofm_badge_disabled {
+.dge_badge_disabled {
   background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.08);
   color: var(--dsw-alias-label-tertiary, #777777);
 }
-.ofm_actions {
+.dge_actions {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
-.ofm_btn {
+.dge_btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -198,58 +198,58 @@ window.__ModuleLoader__.load({
   user-select: none;
   outline: none;
 }
-.ofm_btn_primary {
+.dge_btn_primary {
   background: var(--dsw-alias-state-business-primary, #3b82f6);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
-.ofm_btn_primary:hover:not(:disabled) {
+.dge_btn_primary:hover:not(:disabled) {
   opacity: 0.92;
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
 }
-.ofm_btn_secondary {
+.dge_btn_secondary {
   background: var(--dsw-alias-bg-layer-2, rgba(255, 255, 255, 0.05));
   color: var(--dsw-alias-label-primary, #e0e0e0);
   border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.12));
 }
-.ofm_btn_secondary:hover:not(:disabled) {
+.dge_btn_secondary:hover:not(:disabled) {
   background: var(--dsw-alias-bg-layer-3, rgba(255, 255, 255, 0.1));
   border-color: var(--dsw-alias-border-l2, rgba(255, 255, 255, 0.2));
 }
 
-.ofm_btn_danger {
+.dge_btn_danger {
   background: rgba(239, 68, 68, 0.12);
   color: #f87171;
   border: 1px solid rgba(239, 68, 68, 0.25);
 }
-.ofm_btn_danger:hover:not(:disabled) {
+.dge_btn_danger:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.22);
   border-color: rgba(239, 68, 68, 0.4);
   color: #fca5a5;
 }
 
-.ofm_btn_success {
+.dge_btn_success {
   background: rgba(16, 185, 129, 0.15);
   color: #34d399;
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
-.ofm_btn_icon {
+.dge_btn_icon {
   font-size: 13px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
-.ofm_btn:disabled {
+.dge_btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
-.ofm_grid_dual {
+.dge_grid_dual {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
 }
-.ofm_card {
+.dge_card {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -259,7 +259,7 @@ window.__ModuleLoader__.load({
   border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.08));
   box-sizing: border-box;
 }
-.ofm_card_title {
+.dge_card_title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
@@ -267,13 +267,13 @@ window.__ModuleLoader__.load({
   line-height: 1.4;
   letter-spacing: 0.2px;
 }
-.ofm_quota_gauge {
+.dge_quota_gauge {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-top: 2px;
 }
-.ofm_gauge_bar_bg {
+.dge_gauge_bar_bg {
   width: 100%;
   height: 8px;
   border-radius: 4px;
@@ -281,41 +281,41 @@ window.__ModuleLoader__.load({
   overflow: hidden;
   position: relative;
 }
-.ofm_gauge_bar_val {
+.dge_gauge_bar_val {
   height: 100%;
   border-radius: 4px;
   background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
   transition: width 0.3s ease;
 }
-.ofm_gauge_info {
+.dge_gauge_info {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   margin-bottom: 2px;
 }
-.ofm_gauge_percent {
+.dge_gauge_percent {
   font-size: 18px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--dsw-alias-label-primary, #ffffff);
   line-height: 1;
 }
-.ofm_gauge_reset {
+.dge_gauge_reset {
   font-size: 12px;
   color: var(--dsw-alias-label-tertiary, #858585);
   line-height: 1;
 }
-.ofm_account_section {
+.dge_account_section {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.ofm_account_list {
+.dge_account_list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.ofm_account_item {
+.dge_account_item {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -324,41 +324,41 @@ window.__ModuleLoader__.load({
   background: var(--dsw-alias-bg-layer-2, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.06));
 }
-.ofm_account_meta {
+.dge_account_meta {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.ofm_account_name {
+.dge_account_name {
   font-size: 13px;
   font-family: monospace;
   color: var(--dsw-alias-label-primary, #e0e0e0);
 }
-.ofm_account_actions {
+.dge_account_actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.ofm_models_section {
+.dge_models_section {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-.ofm_account_header {
+.dge_account_header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
 }
 
-.ofm_faq_title {
+.dge_faq_title {
   font-size: 13px;
   font-weight: 600;
   color: var(--dsw-alias-label-primary, #fff);
   margin-bottom: 2px;
 }
-.ofm_faq_card {
+.dge_faq_card {
   background: var(--dsw-alias-interactive-bg-hover, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.08));
   border-radius: var(--dsw-radius-md, 8px);
@@ -368,12 +368,12 @@ window.__ModuleLoader__.load({
   flex-direction: column;
   gap: 10px;
 }
-.ofm_faq_item {
+.dge_faq_item {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.ofm_faq_q {
+.dge_faq_q {
   font-weight: 600;
   font-size: 13px;
   color: var(--dsw-alias-label-primary, #fff);
@@ -386,10 +386,10 @@ window.__ModuleLoader__.load({
   border-radius: var(--dsw-radius-sm, 6px);
   transition: background .15s ease;
 }
-.ofm_faq_q:hover {
+.dge_faq_q:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(255, 255, 255, 0.06));
 }
-.ofm_faq_a {
+.dge_faq_a {
   font-size: 12px;
   line-height: 1.55;
   color: var(--dsw-alias-label-secondary, #b8b8b8);
@@ -398,7 +398,7 @@ window.__ModuleLoader__.load({
   margin: 2px 0 4px 6px;
 }
 
-.ofm_models_title_wrap {
+.dge_models_title_wrap {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -409,32 +409,32 @@ window.__ModuleLoader__.load({
   border-radius: var(--dsw-radius-sm, 6px);
   transition: background .15s ease;
 }
-.ofm_models_title_wrap:hover {
+.dge_models_title_wrap:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(255, 255, 255, 0.05));
 }
-.ofm_collapse_icon {
+.dge_collapse_icon {
   font-size: 11px;
   color: var(--dsw-alias-label-caption, #888);
   transition: transform .18s ease;
 }
-.ofm_faq_toggle_icon {
+.dge_faq_toggle_icon {
   font-size: 10px;
   color: var(--dsw-alias-label-caption, #888);
   margin-left: auto;
   transition: transform .18s ease;
 }
-.ofm_models_header {
+.dge_models_header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.ofm_model_grid {
+.dge_model_grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 12px;
 }
-.ofm_model_card {
+.dge_model_card {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -445,39 +445,39 @@ window.__ModuleLoader__.load({
   border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.08));
   transition: all 0.18s ease;
 }
-.ofm_model_head {
+.dge_model_head {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.ofm_model_name {
+.dge_model_name {
   font-size: 14px;
   font-weight: 600;
   color: var(--dsw-alias-label-primary, #ffffff);
 }
-.ofm_model_id {
+.dge_model_id {
   font-size: 12px;
   font-family: monospace;
   color: var(--dsw-alias-label-tertiary, #757575);
 }
-.ofm_model_tags {
+.dge_model_tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
-.ofm_model_tag {
+.dge_model_tag {
   font-size: 10px;
   padding: 2px 6px;
   border-radius: 3px;
   background: var(--dsw-alias-bg-layer-3, rgba(255, 255, 255, 0.08));
   color: var(--dsw-alias-label-secondary, #b0b0b0);
 }
-.ofm_stealth_section {
+.dge_stealth_section {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-.ofm_stealth_box {
+.dge_stealth_box {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -486,23 +486,23 @@ window.__ModuleLoader__.load({
   background: var(--dsw-alias-bg-layer-1, rgba(255, 255, 255, 0.02));
   border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.06));
 }
-.ofm_stealth_row {
+.dge_stealth_row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
 }
-.ofm_stealth_label {
+.dge_stealth_label {
   color: var(--dsw-alias-label-secondary, #888888);
 }
-.ofm_stealth_val {
+.dge_stealth_val {
   font-family: monospace;
   color: var(--dsw-alias-label-primary, #cccccc);
 }
-.ofm_svg_spin {
-  animation: ofmspin 0.75s linear infinite;
+.dge_svg_spin {
+  animation: dgespin 0.75s linear infinite;
 }
-@keyframes ofmspin {
+@keyframes dgespin {
   100% { transform: rotate(360deg); }
 }
 
@@ -542,7 +542,7 @@ window.__ModuleLoader__.load({
     // ── Spinner SVG Helper ───────────────────────────────────────────────────
     function renderSpinner() {
       return h('svg', {
-        className: 'ofm_svg_spin',
+        className: 'dge_svg_spin',
         viewBox: '0 0 16 16',
         width: 14,
         height: 14,
@@ -759,145 +759,145 @@ window.__ModuleLoader__.load({
       const r5 = formatReset(quota?.fiveHour?.resetTime)
       const rW = formatReset(quota?.weekly?.resetTime)
 
-      return h('div', { className: 'ofm_container' },
+      return h('div', { className: 'dge_container' },
         // Header
-        h('div', { className: 'ofm_header' },
-          h('div', { className: 'ofm_title_group' },
-            h('h2', { className: 'ofm_title' }, t('title')),
-            h('div', { className: 'ofm_badge_group' },
-              h('span', { className: 'ofm_badge ofm_badge_success' }, t('statusOk')),
-              h('span', { className: 'ofm_badge' }, t('stealthActive'))
+        h('div', { className: 'dge_header' },
+          h('div', { className: 'dge_title_group' },
+            h('h2', { className: 'dge_title' }, t('title')),
+            h('div', { className: 'dge_badge_group' },
+              h('span', { className: 'dge_badge dge_badge_success' }, t('statusOk')),
+              h('span', { className: 'dge_badge' }, t('stealthActive'))
             )
           ),
-          h('div', { className: 'ofm_actions' },
+          h('div', { className: 'dge_actions' },
             // Add Account Button
             h('button', {
-              className: 'ofm_btn ofm_btn_primary',
+              className: 'dge_btn dge_btn_primary',
               disabled: addingAccount,
               onClick: handleAddAccount
             },
-              addingAccount ? renderSpinner() : h('span', { className: 'ofm_btn_icon' }, '+'),
+              addingAccount ? renderSpinner() : h('span', { className: 'dge_btn_icon' }, '+'),
               addingAccount ? t('addingAccount') : t('addAccount')
             ),
             // Ping Latency Button
             h('button', {
-              className: 'ofm_btn ofm_btn_secondary',
+              className: 'dge_btn dge_btn_secondary',
               disabled: pinging,
               onClick: handlePing
             },
-              pinging ? renderSpinner() : h('span', { className: 'ofm_btn_icon' }, '⚡'),
+              pinging ? renderSpinner() : h('span', { className: 'dge_btn_icon' }, '⚡'),
               pinging ? t('pingTesting') : (pingMs !== null ? (pingMs >= 0 ? `${t('pingSuccess')} ${pingMs}ms` : t('pingFailed')) : t('pingTest'))
             ),
             // Refresh Quota Button
             h('button', {
-              className: justRefreshed ? 'ofm_btn ofm_btn_success' : 'ofm_btn ofm_btn_secondary',
+              className: justRefreshed ? 'dge_btn dge_btn_success' : 'dge_btn dge_btn_secondary',
               disabled: refreshing,
               onClick: handleRefreshQuota
             },
-              refreshing ? renderSpinner() : (justRefreshed ? h('span', { className: 'ofm_btn_icon' }, '✓') : h('span', { className: 'ofm_btn_icon' }, '↺')),
+              refreshing ? renderSpinner() : (justRefreshed ? h('span', { className: 'dge_btn_icon' }, '✓') : h('span', { className: 'dge_btn_icon' }, '↺')),
               refreshing ? t('refreshing') : (justRefreshed ? t('refreshed') : t('refreshQuota'))
             )
           )
         ),
 
         // Dual Quota Gauges
-        h('div', { className: 'ofm_grid_dual' },
+        h('div', { className: 'dge_grid_dual' },
           // 5-Hour Quota Card
-          h('div', { className: 'ofm_card' },
-            h('div', { className: 'ofm_card_title' }, t('quota5h')),
-            h('div', { className: 'ofm_quota_gauge' },
-              h('div', { className: 'ofm_gauge_info' },
-                h('span', { className: 'ofm_gauge_percent' }, `${p5}%`),
-                r5 ? h('span', { className: 'ofm_gauge_reset' }, `${t('resetAt')} ${r5}`) : null
+          h('div', { className: 'dge_card' },
+            h('div', { className: 'dge_card_title' }, t('quota5h')),
+            h('div', { className: 'dge_quota_gauge' },
+              h('div', { className: 'dge_gauge_info' },
+                h('span', { className: 'dge_gauge_percent' }, `${p5}%`),
+                r5 ? h('span', { className: 'dge_gauge_reset' }, `${t('resetAt')} ${r5}`) : null
               ),
-              h('div', { className: 'ofm_gauge_bar_bg' },
-                h('div', { className: 'ofm_gauge_bar_val', style: { width: `${Math.min(100, Math.max(0, p5))}%` } })
+              h('div', { className: 'dge_gauge_bar_bg' },
+                h('div', { className: 'dge_gauge_bar_val', style: { width: `${Math.min(100, Math.max(0, p5))}%` } })
               )
             )
           ),
 
           // Weekly Quota Card
-          h('div', { className: 'ofm_card' },
-            h('div', { className: 'ofm_card_title' }, t('quotaWeekly')),
-            h('div', { className: 'ofm_quota_gauge' },
-              h('div', { className: 'ofm_gauge_info' },
-                h('span', { className: 'ofm_gauge_percent' }, `${pW}%`),
-                rW ? h('span', { className: 'ofm_gauge_reset' }, `${t('resetAt')} ${rW}`) : null
+          h('div', { className: 'dge_card' },
+            h('div', { className: 'dge_card_title' }, t('quotaWeekly')),
+            h('div', { className: 'dge_quota_gauge' },
+              h('div', { className: 'dge_gauge_info' },
+                h('span', { className: 'dge_gauge_percent' }, `${pW}%`),
+                rW ? h('span', { className: 'dge_gauge_reset' }, `${t('resetAt')} ${rW}`) : null
               ),
-              h('div', { className: 'ofm_gauge_bar_bg' },
-                h('div', { className: 'ofm_gauge_bar_val', style: { width: `${Math.min(100, Math.max(0, pW))}%` } })
+              h('div', { className: 'dge_gauge_bar_bg' },
+                h('div', { className: 'dge_gauge_bar_val', style: { width: `${Math.min(100, Math.max(0, pW))}%` } })
               )
             )
           )
         ),
 
         // Account Management List
-        h('div', { className: 'ofm_account_section' },
-          h('div', { className: 'ofm_account_header' },
-            h('h3', { className: 'ofm_title' }, t('accountTitle')),
+        h('div', { className: 'dge_account_section' },
+          h('div', { className: 'dge_account_header' },
+            h('h3', { className: 'dge_title' }, t('accountTitle')),
             h('button', {
-              className: 'ofm_btn ofm_btn_secondary',
+              className: 'dge_btn dge_btn_secondary',
               onClick: () => setShowFaq(!showFaq)
             }, t('faqBtn'))
           ),
-          showFaq ? h('div', { className: 'ofm_faq_card' },
-            h('div', { className: 'ofm_faq_title' }, t('faqTitle')),
-            h('div', { className: 'ofm_faq_item' },
-              h('div', { className: 'ofm_faq_q', onClick: () => toggleFaq(1) },
+          showFaq ? h('div', { className: 'dge_faq_card' },
+            h('div', { className: 'dge_faq_title' }, t('faqTitle')),
+            h('div', { className: 'dge_faq_item' },
+              h('div', { className: 'dge_faq_q', onClick: () => toggleFaq(1) },
                 h('span', null, 'Q1. ' + t('faqQ1')),
-                h('span', { className: 'ofm_faq_toggle_icon' }, openFaq[1] ? '▲' : '▼')
+                h('span', { className: 'dge_faq_toggle_icon' }, openFaq[1] ? '▲' : '▼')
               ),
-              openFaq[1] ? h('div', { className: 'ofm_faq_a' }, t('faqA1')) : null
+              openFaq[1] ? h('div', { className: 'dge_faq_a' }, t('faqA1')) : null
             ),
-            h('div', { className: 'ofm_faq_item' },
-              h('div', { className: 'ofm_faq_q', onClick: () => toggleFaq(2) },
+            h('div', { className: 'dge_faq_item' },
+              h('div', { className: 'dge_faq_q', onClick: () => toggleFaq(2) },
                 h('span', null, 'Q2. ' + t('faqQ2')),
-                h('span', { className: 'ofm_faq_toggle_icon' }, openFaq[2] ? '▲' : '▼')
+                h('span', { className: 'dge_faq_toggle_icon' }, openFaq[2] ? '▲' : '▼')
               ),
-              openFaq[2] ? h('div', { className: 'ofm_faq_a' }, t('faqA2')) : null
+              openFaq[2] ? h('div', { className: 'dge_faq_a' }, t('faqA2')) : null
             ),
-            h('div', { className: 'ofm_faq_item' },
-              h('div', { className: 'ofm_faq_q', onClick: () => toggleFaq(3) },
+            h('div', { className: 'dge_faq_item' },
+              h('div', { className: 'dge_faq_q', onClick: () => toggleFaq(3) },
                 h('span', null, 'Q3. ' + t('faqQ3')),
-                h('span', { className: 'ofm_faq_toggle_icon' }, openFaq[3] ? '▲' : '▼')
+                h('span', { className: 'dge_faq_toggle_icon' }, openFaq[3] ? '▲' : '▼')
               ),
-              openFaq[3] ? h('div', { className: 'ofm_faq_a' }, t('faqA3')) : null
+              openFaq[3] ? h('div', { className: 'dge_faq_a' }, t('faqA3')) : null
             ),
-            h('div', { className: 'ofm_faq_item' },
-              h('div', { className: 'ofm_faq_q', onClick: () => toggleFaq(4) },
+            h('div', { className: 'dge_faq_item' },
+              h('div', { className: 'dge_faq_q', onClick: () => toggleFaq(4) },
                 h('span', null, 'Q4. ' + t('faqQ4')),
-                h('span', { className: 'ofm_faq_toggle_icon' }, openFaq[4] ? '▲' : '▼')
+                h('span', { className: 'dge_faq_toggle_icon' }, openFaq[4] ? '▲' : '▼')
               ),
-              openFaq[4] ? h('div', { className: 'ofm_faq_a' }, t('faqA4')) : null
+              openFaq[4] ? h('div', { className: 'dge_faq_a' }, t('faqA4')) : null
             ),
-            h('div', { className: 'ofm_faq_item' },
-              h('div', { className: 'ofm_faq_q', onClick: () => toggleFaq(5) },
+            h('div', { className: 'dge_faq_item' },
+              h('div', { className: 'dge_faq_q', onClick: () => toggleFaq(5) },
                 h('span', null, 'Q5. ' + t('faqQ5')),
-                h('span', { className: 'ofm_faq_toggle_icon' }, openFaq[5] ? '▲' : '▼')
+                h('span', { className: 'dge_faq_toggle_icon' }, openFaq[5] ? '▲' : '▼')
               ),
-              openFaq[5] ? h('div', { className: 'ofm_faq_a' }, t('faqA5')) : null
+              openFaq[5] ? h('div', { className: 'dge_faq_a' }, t('faqA5')) : null
             )
           ) : null,
-          h('div', { className: 'ofm_account_list' },
+          h('div', { className: 'dge_account_list' },
             (() => {
               const enabledAccounts = accounts.filter(x => x.enabled);
               const primaryId = enabledAccounts.find(x => x.id === quota?.primaryAccountId)?.id || enabledAccounts[0]?.id;
               return accounts.map(a => {
                 const isPrimary = Boolean(a.enabled && a.id === primaryId);
-              return h('div', { key: a.id, className: 'ofm_account_item' },
-                h('div', { className: 'ofm_account_meta' },
-                  h('span', { className: 'ofm_account_name' }, a.nickname || a.id),
+              return h('div', { key: a.id, className: 'dge_account_item' },
+                h('div', { className: 'dge_account_meta' },
+                  h('span', { className: 'dge_account_name' }, a.nickname || a.id),
                   h('span', {
-                    className: !a.enabled ? 'ofm_badge ofm_badge_disabled' : (isPrimary ? 'ofm_badge ofm_badge_success' : 'ofm_badge')
+                    className: !a.enabled ? 'dge_badge dge_badge_disabled' : (isPrimary ? 'dge_badge dge_badge_success' : 'dge_badge')
                   }, !a.enabled ? t('accountDisabled') : (isPrimary ? t('accountActive') : t('accountStandby')))
                 ),
-                h('div', { className: 'ofm_account_actions' },
+                h('div', { className: 'dge_account_actions' },
                   h('button', {
-                    className: a.enabled ? 'ofm_btn ofm_btn_secondary' : 'ofm_btn ofm_btn_primary',
+                    className: a.enabled ? 'dge_btn dge_btn_secondary' : 'dge_btn dge_btn_primary',
                     onClick: () => handleToggleAccount(a.id, !a.enabled)
                   }, a.enabled ? t('disableAccount') : t('enableAccount')),
                   h('button', {
-                    className: 'ofm_btn ofm_btn_danger',
+                    className: 'dge_btn dge_btn_danger',
                     disabled: deletingId === a.id,
                     onClick: () => handleDeleteAccount(a.id)
                   }, deletingId === a.id ? t('deletingAccount') : t('deleteAccount'))
@@ -909,14 +909,14 @@ window.__ModuleLoader__.load({
         ),
 
         // Available Models Section (Clean basic information only)
-        h('div', { className: 'ofm_models_section' },
-          h('div', { className: 'ofm_models_header' },
-            h('div', { className: 'ofm_models_title_wrap', onClick: () => setModelsCollapsed(!modelsCollapsed) },
-              h('h3', { className: 'ofm_title' }, t('modelRoster')),
-              h('span', { className: 'ofm_collapse_icon' }, modelsCollapsed ? '▶' : '▼')
+        h('div', { className: 'dge_models_section' },
+          h('div', { className: 'dge_models_header' },
+            h('div', { className: 'dge_models_title_wrap', onClick: () => setModelsCollapsed(!modelsCollapsed) },
+              h('h3', { className: 'dge_title' }, t('modelRoster')),
+              h('span', { className: 'dge_collapse_icon' }, modelsCollapsed ? '▶' : '▼')
             ),
             h('button', {
-              className: 'ofm_btn ofm_btn_secondary',
+              className: 'dge_btn dge_btn_secondary',
               disabled: fetching,
               onClick: handleFetchModels
             },
@@ -929,32 +929,32 @@ window.__ModuleLoader__.load({
                   : t('fetchModels'))
             )
           ),
-          !modelsCollapsed ? h('div', { className: 'ofm_model_grid' },
-            models.map(m => h('div', { key: m.id, className: 'ofm_model_card' },
-              h('div', { className: 'ofm_model_head' },
-                h('div', { className: 'ofm_model_name' }, m.name || m.id),
-                h('div', { className: 'ofm_model_id' }, m.id)
+          !modelsCollapsed ? h('div', { className: 'dge_model_grid' },
+            models.map(m => h('div', { key: m.id, className: 'dge_model_card' },
+              h('div', { className: 'dge_model_head' },
+                h('div', { className: 'dge_model_name' }, m.name || m.id),
+                h('div', { className: 'dge_model_id' }, m.id)
               ),
-              h('div', { className: 'ofm_model_tags' },
-                m.contextWindow ? h('span', { className: 'ofm_model_tag' }, `${Math.round(m.contextWindow / 1024)}k 上下文`) : null,
-                m.supportsThinking ? h('span', { className: 'ofm_model_tag' }, t('modelThinking')) : null,
-                m.supportsImages ? h('span', { className: 'ofm_model_tag' }, t('modelVision')) : null,
+              h('div', { className: 'dge_model_tags' },
+                m.contextWindow ? h('span', { className: 'dge_model_tag' }, `${Math.round(m.contextWindow / 1024)}k 上下文`) : null,
+                m.supportsThinking ? h('span', { className: 'dge_model_tag' }, t('modelThinking')) : null,
+                m.supportsImages ? h('span', { className: 'dge_model_tag' }, t('modelVision')) : null,
               )
             ))
           ) : null
         ),
 
         // Stealth Diagnostics
-        h('div', { className: 'ofm_stealth_section' },
-          h('h3', { className: 'ofm_title' }, t('stealthTitle')),
-          h('div', { className: 'ofm_stealth_box' },
-            h('div', { className: 'ofm_stealth_row' },
-              h('span', { className: 'ofm_stealth_label' }, t('machineId')),
-              h('span', { className: 'ofm_stealth_val' }, stealth?.machineIdHash || '—')
+        h('div', { className: 'dge_stealth_section' },
+          h('h3', { className: 'dge_title' }, t('stealthTitle')),
+          h('div', { className: 'dge_stealth_box' },
+            h('div', { className: 'dge_stealth_row' },
+              h('span', { className: 'dge_stealth_label' }, t('machineId')),
+              h('span', { className: 'dge_stealth_val' }, stealth?.machineIdHash || '—')
             ),
-            h('div', { className: 'ofm_stealth_row' },
-              h('span', { className: 'ofm_stealth_label' }, t('sessionId')),
-              h('span', { className: 'ofm_stealth_val' }, stealth?.sessionId || '—')
+            h('div', { className: 'dge_stealth_row' },
+              h('span', { className: 'dge_stealth_label' }, t('sessionId')),
+              h('span', { className: 'dge_stealth_val' }, stealth?.sessionId || '—')
             )
           )
         )
