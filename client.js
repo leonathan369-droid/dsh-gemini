@@ -64,7 +64,6 @@ window.__ModuleLoader__.load({
         modelRoster: '可用模型清单',
         modelThinking: '深度思考',
         modelVision: '多模态视觉',
-        modelRecommended: '官方推荐',
         stealthTitle: '隐蔽指纹防护',
         machineId: '机器指纹',
         sessionId: '会话识别',
@@ -112,7 +111,6 @@ window.__ModuleLoader__.load({
         modelRoster: 'Available Models',
         modelThinking: 'Thinking',
         modelVision: 'Vision',
-        modelRecommended: 'Recommended',
         stealthTitle: 'Stealth Fingerprint Protection',
         machineId: 'Machine ID',
         sessionId: 'Session ID',
@@ -378,12 +376,48 @@ window.__ModuleLoader__.load({
   display: flex;
   align-items: center;
   gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 6px;
+  border-radius: var(--dsw-radius-sm, 6px);
+  transition: background .15s ease;
+}
+.ofm_faq_q:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgba(255, 255, 255, 0.06));
 }
 .ofm_faq_a {
   font-size: 12px;
   line-height: 1.55;
   color: var(--dsw-alias-label-secondary, #b8b8b8);
-  padding-left: 2px;
+  padding: 4px 6px 8px 10px;
+  border-left: 2px solid var(--dsw-alias-interactive-bg-hover, rgba(255, 255, 255, 0.15));
+  margin: 2px 0 4px 6px;
+}
+
+.ofm_models_title_wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: var(--dsw-radius-sm, 6px);
+  transition: background .15s ease;
+}
+.ofm_models_title_wrap:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgba(255, 255, 255, 0.05));
+}
+.ofm_collapse_icon {
+  font-size: 11px;
+  color: var(--dsw-alias-label-caption, #888);
+  transition: transform .18s ease;
+}
+.ofm_faq_toggle_icon {
+  font-size: 10px;
+  color: var(--dsw-alias-label-caption, #888);
+  margin-left: auto;
+  transition: transform .18s ease;
 }
 .ofm_models_header {
   display: flex;
@@ -556,6 +590,9 @@ window.__ModuleLoader__.load({
       const [fetching, setFetching] = useState(false)
       const [fetchStatus, setFetchStatus] = useState(null)
       const [showFaq, setShowFaq] = useState(false)
+      const [modelsCollapsed, setModelsCollapsed] = useState(false)
+      const [openFaq, setOpenFaq] = useState({})
+      const toggleFaq = (num) => setOpenFaq(prev => ({ ...prev, [num]: !prev[num] }))
       const [pingMs, setPingMs] = useState(null)
       const [pinging, setPinging] = useState(false)
       const [refreshing, setRefreshing] = useState(false)
@@ -802,20 +839,32 @@ window.__ModuleLoader__.load({
           showFaq ? h('div', { className: 'ofm_faq_card' },
             h('div', { className: 'ofm_faq_title' }, t('faqTitle')),
             h('div', { className: 'ofm_faq_item' },
-              h('div', { className: 'ofm_faq_q' }, 'Q1. ' + t('faqQ1')),
-              h('div', { className: 'ofm_faq_a' }, t('faqA1'))
+              h('div', { className: 'ofm_faq_q', onClick: () => toggleFaq(1) },
+                h('span', null, 'Q1. ' + t('faqQ1')),
+                h('span', { className: 'ofm_faq_toggle_icon' }, openFaq[1] ? '▲' : '▼')
+              ),
+              openFaq[1] ? h('div', { className: 'ofm_faq_a' }, t('faqA1')) : null
             ),
             h('div', { className: 'ofm_faq_item' },
-              h('div', { className: 'ofm_faq_q' }, 'Q2. ' + t('faqQ2')),
-              h('div', { className: 'ofm_faq_a' }, t('faqA2'))
+              h('div', { className: 'ofm_faq_q', onClick: () => toggleFaq(2) },
+                h('span', null, 'Q2. ' + t('faqQ2')),
+                h('span', { className: 'ofm_faq_toggle_icon' }, openFaq[2] ? '▲' : '▼')
+              ),
+              openFaq[2] ? h('div', { className: 'ofm_faq_a' }, t('faqA2')) : null
             ),
             h('div', { className: 'ofm_faq_item' },
-              h('div', { className: 'ofm_faq_q' }, 'Q3. ' + t('faqQ3')),
-              h('div', { className: 'ofm_faq_a' }, t('faqA3'))
+              h('div', { className: 'ofm_faq_q', onClick: () => toggleFaq(3) },
+                h('span', null, 'Q3. ' + t('faqQ3')),
+                h('span', { className: 'ofm_faq_toggle_icon' }, openFaq[3] ? '▲' : '▼')
+              ),
+              openFaq[3] ? h('div', { className: 'ofm_faq_a' }, t('faqA3')) : null
             ),
             h('div', { className: 'ofm_faq_item' },
-              h('div', { className: 'ofm_faq_q' }, 'Q4. ' + t('faqQ4')),
-              h('div', { className: 'ofm_faq_a' }, t('faqA4'))
+              h('div', { className: 'ofm_faq_q', onClick: () => toggleFaq(4) },
+                h('span', null, 'Q4. ' + t('faqQ4')),
+                h('span', { className: 'ofm_faq_toggle_icon' }, openFaq[4] ? '▲' : '▼')
+              ),
+              openFaq[4] ? h('div', { className: 'ofm_faq_a' }, t('faqA4')) : null
             )
           ) : null,
           h('div', { className: 'ofm_account_list' },
@@ -851,7 +900,10 @@ window.__ModuleLoader__.load({
         // Available Models Section (Clean basic information only)
         h('div', { className: 'ofm_models_section' },
           h('div', { className: 'ofm_models_header' },
-            h('h3', { className: 'ofm_title' }, t('modelRoster')),
+            h('div', { className: 'ofm_models_title_wrap', onClick: () => setModelsCollapsed(!modelsCollapsed) },
+              h('h3', { className: 'ofm_title' }, t('modelRoster')),
+              h('span', { className: 'ofm_collapse_icon' }, modelsCollapsed ? '▶' : '▼')
+            ),
             h('button', {
               className: 'ofm_btn ofm_btn_secondary',
               disabled: fetching,
@@ -866,7 +918,7 @@ window.__ModuleLoader__.load({
                   : t('fetchModels'))
             )
           ),
-          h('div', { className: 'ofm_model_grid' },
+          !modelsCollapsed ? h('div', { className: 'ofm_model_grid' },
             models.map(m => h('div', { key: m.id, className: 'ofm_model_card' },
               h('div', { className: 'ofm_model_head' },
                 h('div', { className: 'ofm_model_name' }, m.name || m.id),
@@ -876,10 +928,9 @@ window.__ModuleLoader__.load({
                 m.contextWindow ? h('span', { className: 'ofm_model_tag' }, `${Math.round(m.contextWindow / 1024)}k 上下文`) : null,
                 m.supportsThinking ? h('span', { className: 'ofm_model_tag' }, t('modelThinking')) : null,
                 m.supportsImages ? h('span', { className: 'ofm_model_tag' }, t('modelVision')) : null,
-                m.recommended ? h('span', { className: 'ofm_model_tag' }, t('modelRecommended')) : null
               )
             ))
-          )
+          ) : null
         ),
 
         // Stealth Diagnostics
