@@ -44,7 +44,7 @@ export function apply(ctx, config = {}) {
     });
   });
 
-  // 2. Mount WebServer Routes (/api/gemini/*, /api/gemini-quota, /api/our-free-model/*)
+  // 2. Mount WebServer Routes (/api/gemini/*, /api/gemini-quota)
   ctx.inject(['webServer'], scoped => {
     const server = scoped.webServer;
 
@@ -223,39 +223,7 @@ export function apply(ctx, config = {}) {
       }
     }), 'dsh-gemini: gemini api');
 
-    // C. Backward compatibility for legacy our-free-model callers
-    scoped.effect(() => server.register({
-      kind: 'prefix',
-      path: '/api/our-free-model',
-      handler: (req, res) => {
-        const url = parseUrl(req);
-        if (!url) {
-          res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' });
-          return res.end(JSON.stringify({ error: 'bad_request', message: 'malformed URI' }));
-        }
-        const p = url.pathname.replace(/^\/api\/our-free-model/, '') || '/';
-
-        res.setHeader('content-type', 'application/json; charset=utf-8');
-        res.setHeader('cache-control', 'no-store');
-
-        const models = getCachedModels();
-        if (p === '/summary') {
-          res.end(JSON.stringify({
-            version,
-            catalog: models.map(m => ({ id: m.id, name: m.name, channel: 'channels', provider: 'gemini' })),
-            available: models.length
-          }));
-        } else if (p === '/meta') {
-          res.end(JSON.stringify({ version }));
-        } else if (p === '/announcement' || p === '/announcements') {
-          res.end(JSON.stringify({ acknowledged: true, version: '', unread: 0, announcements: [] }));
-        } else if (p === '/stats') {
-          res.end(JSON.stringify({ requests: 0, turns: 0, models: [] }));
-        } else {
-          res.end(JSON.stringify({ ok: true }));
-        }
-      }
-    }), 'dsh-gemini: legacy dashboard api');
+    
 
     logger.info?.('dsh-gemini: web endpoints mounted');
   });

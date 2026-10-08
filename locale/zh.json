@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Our Free Model",
-    "description": "在 DeepSeek Harness 内直连免密免费模型：清单跟随上游更新、地区可用性自动探测、思考强度档位真实生效，并附 Token 用量看板与 OpenAI 兼容的本地转发端口。"
+    "title": "Gemini Engine",
+    "description": "DeepSeek Harness 专享 Google Gemini 免费/Pro 多账号接入引擎：动态模型探测、硬件指纹隐蔽防护、双账号池化与 5h/周双配额实时监控。"
   }
 }

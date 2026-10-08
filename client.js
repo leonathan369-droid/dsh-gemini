@@ -16,7 +16,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const { createElement: h, useState, useEffect, useCallback } = React
 
-    const NS = 'settings.ourFreeModel'
+    const NS = 'settings.dshGemini'
     const inject = ['slots', 'locale']
 
     // ── dictionary coverage ───────────────────────────────────────────────────
@@ -1207,8 +1207,8 @@ window.__ModuleLoader__.load({
       // Register Settings Section
       ctx.slots.inject('settings.section', () => ctx.slots.register({
         name: 'settings.section',
-        id: 'our-free-model',
-        order: 35,
+        id: 'dsh-gemini',
+        order: 36,
         label: () => t('nav'),
         locale: NS,
       }, props => h(SettingsPage, { ...props, locale: ctx?.locale?.language || 'zh' })))
@@ -1216,7 +1216,7 @@ window.__ModuleLoader__.load({
       // Complete onboarding immediately
       ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
         name: 'settings.onboarding',
-        id: 'our-free-model-announcement',
+        id: 'dsh-gemini-announcement',
         order: -50,
         locale: NS,
       }, props => {

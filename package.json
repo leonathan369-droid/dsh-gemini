@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "DeepSeek Harness (DSH) 官方 Gemini 免费多账号接入与实时配额监控插件。支持 Google OAuth 登录、自动 Token 续期、429 智能故障转移与 5h/周配额对齐显示。",
+  "description": "DeepSeek Harness 专享 Google Gemini 免费/Pro 多账号接入引擎：动态模型探测、硬件指纹隐蔽防护、双账号池化与 5h/周双配额实时监控。",
   "main": "./index.js",
   "exports": {
     ".": "./index.js",
