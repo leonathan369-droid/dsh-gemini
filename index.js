@@ -64,7 +64,13 @@ export function apply(ctx, config = {}) {
       kind: 'prefix',
       path: '/api/gemini',
       handler: async (req, res) => {
-        const url = new URL(req.url ?? '/', 'http://localhost');
+        let url;
+        try {
+          url = new URL(req.url ?? '/', 'http://localhost');
+        } catch {
+          res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ error: 'bad_request', message: 'malformed URI' }));
+        }
         const p = url.pathname.replace(/^\/api\/gemini/, '') || '/';
 
         res.setHeader('content-type', 'application/json; charset=utf-8');
@@ -147,7 +153,13 @@ export function apply(ctx, config = {}) {
       kind: 'prefix',
       path: '/api/our-free-model',
       handler: (req, res) => {
-        const url = new URL(req.url ?? '/', 'http://localhost');
+        let url;
+        try {
+          url = new URL(req.url ?? '/', 'http://localhost');
+        } catch {
+          res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ error: 'bad_request', message: 'malformed URI' }));
+        }
         const p = url.pathname.replace(/^\/api\/our-free-model/, '') || '/';
 
         res.setHeader('content-type', 'application/json; charset=utf-8');

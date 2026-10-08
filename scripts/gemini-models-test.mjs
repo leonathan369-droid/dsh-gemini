@@ -31,8 +31,13 @@ async function run() {
   const models = getCachedModels();
   assert(Array.isArray(models), 'models must be an array');
   assert(models.length > 0, 'models list must not be empty');
-  assert(models.some(m => m.id.includes('3.8-flash')), 'Gemini 3.8 Flash model must be present');
-  console.log(`ok  cached models verified (${models.length} model(s) available)`);
+  
+  // Verify canonical family grouping
+  const flash38 = models.find(m => m.id === 'gemini-3.8-flash');
+  assert(flash38, 'Canonical model gemini-3.8-flash must be present');
+  assert(flash38.supportsThinking, 'gemini-3.8-flash must support thinking');
+  assert(flash38.effortOptions.length > 0, 'gemini-3.8-flash must have effortOptions');
+  console.log(`ok  canonical gemini-3.8-flash verified: effortOptions=[${flash38.effortOptions.join(', ')}]`);
 
   console.log('gemini-models-test: OK');
 }

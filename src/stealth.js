@@ -29,20 +29,24 @@ export function getDeviceIdentity() {
     }
   } catch {}
 
-  // Generate deterministic hardware hash from machine characteristics
-  const seed = [
-    os.hostname(),
-    os.userInfo().username,
-    os.platform(),
-    os.arch(),
-    os.cpus()?.[0]?.model || 'Apple',
-  ].join('|');
+  // Safe machine characteristics resolution for containerized / sandbox environments
+  let username = 'user';
+  try { username = os.userInfo()?.username || 'user'; } catch {}
+  let hostname = 'localhost';
+  try { hostname = os.hostname() || 'localhost'; } catch {}
+  let platform = 'darwin';
+  try { platform = os.platform() || 'darwin'; } catch {}
+  let arch = 'arm64';
+  try { arch = os.arch() || 'arm64'; } catch {}
+  let cpuModel = 'Apple';
+  try { cpuModel = os.cpus()?.[0]?.model || 'Apple'; } catch {}
 
+  const seed = [hostname, username, platform, arch, cpuModel].join('|');
   const machineId = crypto.createHash('sha256').update(seed).digest('hex');
   const identity = {
     machineId,
     clientVersion: '4.3.0',
-    platform: `${os.platform()}/${os.arch()}`,
+    platform: `${platform}/${arch}`,
     createdAt: Date.now()
   };
 

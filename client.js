@@ -382,6 +382,10 @@ window.__ModuleLoader__.load({
   position: relative;
   transition: all 0.15s ease;
 }
+.ofm_input_quota_box:hover {
+  background: var(--dsw-alias-bg-layer-3, rgba(255, 255, 255, 0.15));
+  border-color: var(--dsw-alias-border-l2, rgba(255, 255, 255, 0.25));
+}
 .ofm_input_quota_txt {
   line-height: 1;
 }
@@ -399,6 +403,10 @@ window.__ModuleLoader__.load({
   line-height: 1.5;
   display: none;
   z-index: 99999;
+}
+.ofm_input_quota_box:hover .ofm_input_quota_popup,
+.ofm_input_quota_box:focus-within .ofm_input_quota_popup {
+  display: block;
 }
 `
 
@@ -422,7 +430,7 @@ window.__ModuleLoader__.load({
         const m = Math.floor((diffMs % 3600000) / 60000)
         return h > 0 ? `${h}时${m}分后` : `${m}分后`
       } catch {
-        return dateStr
+        return ''
       }
     }
 
@@ -696,9 +704,29 @@ window.__ModuleLoader__.load({
         txtSpan.className = 'ofm_input_quota_txt'
         txtSpan.textContent = `5h: ${p5} ｜ 周: ${pW}`
 
+        // Safe DOM construction preventing DOM-XSS
         const popupDiv = document.createElement('div')
         popupDiv.className = 'ofm_input_quota_popup'
-        popupDiv.innerHTML = `<strong>Google Gemini 实时配额</strong><br/>5小时配额: ${p5} ${r5 ? `(${r5})` : ''}<br/>周总配额: ${pW} ${rW ? `(${rW})` : ''}<br/><span style="opacity:0.7">点击强制刷新</span>`
+
+        const headTitle = document.createElement('strong')
+        headTitle.textContent = 'Google Gemini 实时配额'
+        popupDiv.appendChild(headTitle)
+        popupDiv.appendChild(document.createElement('br'))
+
+        const line5 = document.createElement('span')
+        line5.textContent = `5小时配额: ${p5}${r5 ? ` (${r5})` : ''}`
+        popupDiv.appendChild(line5)
+        popupDiv.appendChild(document.createElement('br'))
+
+        const lineW = document.createElement('span')
+        lineW.textContent = `周总配额: ${pW}${rW ? ` (${rW})` : ''}`
+        popupDiv.appendChild(lineW)
+        popupDiv.appendChild(document.createElement('br'))
+
+        const refreshHint = document.createElement('span')
+        refreshHint.style.opacity = '0.7'
+        refreshHint.textContent = '点击强制刷新'
+        popupDiv.appendChild(refreshHint)
 
         pill.appendChild(txtSpan)
         pill.appendChild(popupDiv)

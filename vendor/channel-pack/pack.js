@@ -56074,8 +56074,9 @@ function geminiFallbackEntries() {
         contextWindow: m.contextWindow || GEMINI_CONTEXT_WINDOW,
         maxTokens: m.maxOutputTokens || GEMINI.maxOutputTokens,
         supportsImage: m.supportsImages ?? true,
-        effortOptions: m.supportsThinking ? GEMINI_EFFORT_IDS : undefined,
-        defaultEffort: m.supportsThinking ? GEMINI_DEFAULT_EFFORT : undefined
+        effortOptions: (m.effortOptions && m.effortOptions.length > 0) ? m.effortOptions : (m.supportsThinking ? GEMINI_EFFORT_IDS : undefined),
+        defaultEffort: m.supportsThinking ? GEMINI_DEFAULT_EFFORT : undefined,
+        concreteIds: m.concreteIds || [m.id]
       }));
     }
   } catch {}
@@ -56102,7 +56103,7 @@ function geminiCanonicalModelId(modelId) {
 function geminiModelSpec(modelId, effort) {
   const canonical = geminiCanonicalModelId(modelId);
   const models = geminiFallbackEntries();
-  const entry = models.find(m => m.id === canonical);
+  const entry = models.find(m => m.id === canonical || m.id === modelId || m.concreteIds?.includes(modelId));
   if (!entry) {
     throw new LlmError14(
       `gemini: 模型 "${modelId}" 不在本 provider 目录中`,
@@ -56110,18 +56111,20 @@ function geminiModelSpec(modelId, effort) {
       { status: 404 }
     );
   }
-  const supportsThinking = entry.effortOptions && entry.effortOptions.length > 0;
+  const supportsThinking = Array.isArray(entry.effortOptions) && entry.effortOptions.length > 0;
   if (!supportsThinking) {
     return {
-      upstream: canonical,
+      upstream: entry.id,
       tier: 'none',
       thinkingBudget: 0,
       includeThoughts: false
     };
   }
-  const tier = geminiEffortToTier(effort);
+  const rawTier = modelId !== canonical ? modelId.slice(canonical.length + 1) : undefined;
+  const tier = geminiEffortToTier(effort || rawTier);
+  const upstream = entry.id.endsWith(`-${tier}`) ? entry.id : `${canonical}-${tier}`;
   return {
-    upstream: `${canonical}-${tier}`,
+    upstream,
     tier,
     thinkingBudget: geminiThinkingBudget(tier),
     includeThoughts: true
@@ -58318,7 +58321,8 @@ var GeminiAdapter = class extends LlmAdapter10 {
    * 6. 全部试完 → 抛 `QUOTA_EXCEEDED`（不无限切）。
    */
   async *stream(options) {
-    const entry = this.loadModels().find((item) => item.id === geminiCanonicalModelId(options.model));
+    const canonical = geminiCanonicalModelId(options.model);
+    const entry = this.loadModels().find((item) => item.id === canonical || item.id === options.model || item.concreteIds?.includes(options.model));
     if (entry === void 0) {
       throw new LlmError15(
         `gemini: 模型 "${options.model}" 不在本 provider 目录中`,

@@ -3,15 +3,20 @@ import path from 'node:path';
 import os from 'node:os';
 import { getIdentityHeaderObject } from './stealth.js';
 
-const QUOTA_URL = 'https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary';
-const MODELS_URL = 'https://daily-cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels';
-const CRED = path.join(os.homedir(), '.dsh/.credentials.yaml');
 const STATE = path.join(os.homedir(), '.dsh/channel-pack/state.json');
+const CRED_CANDIDATES = [
+  path.join(os.homedir(), '.dsh/.credentials.yaml'),
+  path.join(os.homedir(), '.dsh/credentials.yaml'),
+  path.join(os.homedir(), '.dsh/profiles/desktop/credentials.yaml')
+];
 const MODELS_FILE = path.join(os.homedir(), '.dsh/channel-pack/gemini-models.json');
+const QUOTA_URL = 'https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota';
+const MODELS_URL = 'https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels';
 
-let cache = null, lastFetch = 0, inFlight = null;
+let cache = null;
+let lastFetch = 0;
+let inFlight = null;
 
-// Built-in reliable fallbacks if remote discovery has not run yet
 export const DEFAULT_MODELS = [
   {
     id: 'gemini-3.8-flash',
@@ -20,7 +25,8 @@ export const DEFAULT_MODELS = [
     supportsImages: true,
     supportsThinking: true,
     recommended: true,
-    effortOptions: ['low', 'medium', 'high', 'tiered']
+    effortOptions: ['low', 'medium', 'high', 'tiered'],
+    concreteIds: ['gemini-3.8-flash-low', 'gemini-3.8-flash-medium', 'gemini-3.8-flash-high', 'gemini-3.8-flash-tiered']
   },
   {
     id: 'gemini-3.5-flash',
@@ -28,7 +34,9 @@ export const DEFAULT_MODELS = [
     contextWindow: 1048576,
     supportsImages: true,
     supportsThinking: false,
-    recommended: false
+    recommended: false,
+    effortOptions: [],
+    concreteIds: ['gemini-3.5-flash']
   },
   {
     id: 'gemini-2.5-pro',
@@ -36,7 +44,9 @@ export const DEFAULT_MODELS = [
     contextWindow: 1048576,
     supportsImages: true,
     supportsThinking: true,
-    recommended: false
+    recommended: false,
+    effortOptions: ['low', 'medium', 'high', 'tiered'],
+    concreteIds: ['gemini-2.5-pro']
   },
   {
     id: 'gemini-2.5-flash',
@@ -44,7 +54,9 @@ export const DEFAULT_MODELS = [
     contextWindow: 1048576,
     supportsImages: true,
     supportsThinking: false,
-    recommended: false
+    recommended: false,
+    effortOptions: [],
+    concreteIds: ['gemini-2.5-flash']
   }
 ];
 
@@ -55,11 +67,18 @@ export const getAccounts = () => {
 };
 
 export const getToken = (ref) => {
-  try {
-    const txt = fs.readFileSync(CRED, 'utf8');
-    const m = txt.match(new RegExp(`${ref}:\\s*['"]?({.+?})['"]?\\s*$`, 'm')) || txt.match(new RegExp(`${ref}:\\s*['"]?({.*?})['"]?`, 's'));
-    return m ? JSON.parse(m[1].replace(/\n/g, ' ')).access_token : null;
-  } catch { return null; }
+  for (const credPath of CRED_CANDIDATES) {
+    try {
+      if (!fs.existsSync(credPath)) continue;
+      const txt = fs.readFileSync(credPath, 'utf8');
+      const m = txt.match(new RegExp(`${ref}:\\s*['"]?({.+?})['"]?\\s*$`, 'm')) || txt.match(new RegExp(`${ref}:\\s*['"]?({.*?})['"]?`, 's'));
+      if (m) {
+        const parsed = JSON.parse(m[1].replace(/\n/g, ' '));
+        if (parsed?.access_token) return parsed.access_token;
+      }
+    } catch {}
+  }
+  return null;
 };
 
 export async function fetchOne(token) {
@@ -70,11 +89,11 @@ export async function fetchOne(token) {
       body: JSON.stringify({ project: 'aicode-consumers' }),
       signal: AbortSignal.timeout(4500)
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
     const data = await res.json();
-    const b = (data?.groups || []).flatMap(g => g?.buckets || []);
-    const b5 = b.find(x => x?.bucketId === 'gemini-5h');
-    const bW = b.find(x => x?.bucketId === 'gemini-weekly');
+    const buckets = data?.buckets || [];
+    const b5 = buckets.find(b => b.bucketType === 'HOURLY' || b.bucketType?.includes('HOUR'));
+    const bW = buckets.find(b => b.bucketType === 'WEEKLY' || b.bucketType?.includes('WEEK'));
     return {
       ok: true,
       fiveHour: b5 ? { percent: Math.round((b5.remainingFraction || 0) * 100), resetTime: b5.resetTime } : null,
@@ -86,7 +105,24 @@ export async function fetchOne(token) {
 }
 
 /**
+ * Extracts canonical base ID and tier from concrete model identifier
+ */
+function extractCanonical(id) {
+  const effortTiers = ['extra-low', 'low', 'medium', 'high', 'tiered'];
+  for (const tier of effortTiers) {
+    if (id.endsWith(`-${tier}`)) {
+      return {
+        canonicalId: id.slice(0, id.length - tier.length - 1),
+        tier
+      };
+    }
+  }
+  return { canonicalId: id, tier: null };
+}
+
+/**
  * Fetch available models dynamically from Google Cloud Code PA
+ * Groups raw upstream tier IDs into unified canonical models
  */
 export async function fetchRemoteAvailableModels(token = null) {
   if (!token) {
@@ -110,25 +146,49 @@ export async function fetchRemoteAvailableModels(token = null) {
 
   const data = await res.json();
   const rawModels = data?.models || {};
-  const discovered = [];
+  const modelMap = new Map();
 
-  // Filter and extract conversational/coding models, ignore internal tab completion
   for (const [id, meta] of Object.entries(rawModels)) {
     if (id.startsWith('tab_') || id.startsWith('chat_2') || meta.isInternal) continue;
     
-    discovered.push({
-      id,
-      name: meta.displayName || id,
-      contextWindow: meta.maxTokens || 1048576,
-      maxOutputTokens: meta.maxOutputTokens || 65535,
-      supportsImages: Boolean(meta.supportsImages),
-      supportsThinking: Boolean(meta.supportsThinking),
-      recommended: Boolean(meta.recommended),
-      effortOptions: meta.supportsThinking ? ['low', 'medium', 'high', 'tiered'] : []
-    });
+    const { canonicalId, tier } = extractCanonical(id);
+    let displayName = meta.displayName || id;
+    if (tier) {
+      displayName = displayName.replace(/\s*\((Low|Medium|High|Tiered|Extra Low)\)/i, '').trim();
+    }
+
+    if (!modelMap.has(canonicalId)) {
+      modelMap.set(canonicalId, {
+        id: canonicalId,
+        name: displayName,
+        contextWindow: meta.maxTokens || 1048576,
+        maxOutputTokens: meta.maxOutputTokens || 65535,
+        supportsImages: Boolean(meta.supportsImages),
+        supportsThinking: Boolean(meta.supportsThinking || tier),
+        recommended: Boolean(meta.recommended),
+        effortOptions: tier ? [tier] : (meta.supportsThinking ? ['low', 'medium', 'high', 'tiered'] : []),
+        concreteIds: [id]
+      });
+    } else {
+      const entry = modelMap.get(canonicalId);
+      if (tier && !entry.effortOptions.includes(tier)) {
+        entry.effortOptions.push(tier);
+      }
+      if (!entry.concreteIds.includes(id)) {
+        entry.concreteIds.push(id);
+      }
+      if (meta.supportsImages) entry.supportsImages = true;
+      if (meta.supportsThinking) entry.supportsThinking = true;
+    }
   }
 
-  // If list came back empty for some reason, preserve defaults
+  const discovered = Array.from(modelMap.values()).map(m => {
+    // Standardize effort order
+    const order = ['low', 'medium', 'high', 'tiered', 'extra-low'];
+    m.effortOptions.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    return m;
+  });
+
   const finalList = discovered.length > 0 ? discovered : DEFAULT_MODELS;
   saveCachedModels(finalList);
   return finalList;
@@ -150,6 +210,9 @@ export function saveCachedModels(models) {
   } catch {}
 }
 
+/**
+ * Concurrent multi-account quota polling via Promise.allSettled
+ */
 export async function fetchQuota(force = false) {
   const now = Date.now();
   if (!force && cache && (now - lastFetch < 30000)) return cache;
@@ -162,25 +225,33 @@ export async function fetchQuota(force = false) {
         return { ok: false, error: 'no_account', enabled: false, provider: 'gemini', accounts: [] };
       }
 
-      const results = [];
-      for (const a of accs) {
+      // Parallel concurrent execution for all configured accounts
+      const settled = await Promise.allSettled(accs.map(async (a, index) => {
         const token = getToken(a.credentialRef);
         if (!token) {
-          results.push({ id: a.id, nickname: a.nickname, enabled: a.enabled, ok: false, error: 'no_token' });
-          continue;
+          return { id: a.id, nickname: a.nickname, enabled: a.enabled, isPrimary: index === 0, ok: false, error: 'no_token' };
         }
         const q = await fetchOne(token);
-        results.push({
+        return {
           id: a.id,
           nickname: a.nickname,
           enabled: a.enabled,
-          isPrimary: a.id === accs[0].id,
+          isPrimary: index === 0,
           ok: q.ok,
           fiveHour: q.fiveHour,
           weekly: q.weekly,
           error: q.error
-        });
-      }
+        };
+      }));
+
+      const results = settled.map((s, idx) => s.status === 'fulfilled' ? s.value : {
+        id: accs[idx].id,
+        nickname: accs[idx].nickname,
+        enabled: accs[idx].enabled,
+        isPrimary: idx === 0,
+        ok: false,
+        error: s.reason?.message || 'timeout'
+      });
 
       const primary = results.find(r => r.ok && r.enabled) || results[0];
       cache = {
