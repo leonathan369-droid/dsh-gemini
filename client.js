@@ -723,8 +723,11 @@ window.__ModuleLoader__.load({
         h('div', { className: 'ofm_account_section' },
           h('h3', { className: 'ofm_title' }, t('accountTitle')),
           h('div', { className: 'ofm_account_list' },
-            accounts.map((a, idx) => {
-              const isPrimary = a.id === quota?.primaryAccountId || idx === 0
+            (() => {
+              const enabledAccounts = accounts.filter(x => x.enabled);
+              const primaryId = enabledAccounts.find(x => x.id === quota?.primaryAccountId)?.id || enabledAccounts[0]?.id;
+              return accounts.map(a => {
+                const isPrimary = Boolean(a.enabled && a.id === primaryId);
               return h('div', { key: a.id, className: 'ofm_account_item' },
                 h('div', { className: 'ofm_account_meta' },
                   h('span', { className: 'ofm_account_name' }, a.nickname || a.id),
@@ -745,6 +748,7 @@ window.__ModuleLoader__.load({
                 )
               )
             })
+            })()
           )
         ),
 
@@ -809,6 +813,7 @@ window.__ModuleLoader__.load({
           nickname: q.primaryAccount || 'Gemini 账号',
           isPrimary: true, fiveHour: q.fiveHour, weekly: q.weekly
         }]
+        const activePrimaryId = accs.find(a => a.enabled !== false && a.id === q.primaryAccountId)?.id || accs.find(a => a.enabled !== false)?.id
 
         return accs.map((a, i) => {
           const isDisabled = a.enabled === false
@@ -816,16 +821,17 @@ window.__ModuleLoader__.load({
           const pW = isDisabled ? '已停用' : (a.weekly ? `${a.weekly.percent}%` : (a.ok === false ? '不可用' : '—'))
           const r5 = isDisabled ? '' : (a.fiveHour ? formatReset(a.fiveHour.resetTime) : '')
           const rW = isDisabled ? '' : (a.weekly ? formatReset(a.weekly.resetTime) : '')
+          const isPrimary = !isDisabled && (a.id ? a.id === activePrimaryId : (a.isPrimary ?? i === 0))
           const isLow = !!(!isDisabled && a.fiveHour && a.fiveHour.percent < 20)
           const badge = isDisabled
             ? '<span class="dsh-badge-disabled">已停用</span>'
-            : (a.isPrimary
+            : (isPrimary
               ? '<span class="dsh-badge-primary">使用中</span>'
               : (a.isRateLimited ? '<span class="dsh-badge-warn">限流冷却</span>' : '<span class="dsh-badge-standby">备用</span>'))
 
           return `
             ${i > 0 ? '<div class="dsh-acct-sep"></div>' : ''}
-            <div class="dsh-acct-head"><span class="dsh-acct-name" title="${a.nickname}">${a.nickname}</span><div style="display:flex;align-items:center;gap:6px">${badge}${a.isPrimary ? '<span class="dsh-card-refresh" title="强制刷新配额">⟳</span>' : ''}</div></div>
+            <div class="dsh-acct-head"><span class="dsh-acct-name" title="${a.nickname}">${a.nickname}</span><div style="display:flex;align-items:center;gap:6px">${badge}${isPrimary ? '<span class="dsh-card-refresh" title="强制刷新配额">⟳</span>' : ''}</div></div>
             <span class="dsh-col-label">5小时配额：</span><span class="dsh-col-val ${isLow ? 'dsh-val-warn' : ''}">剩余 ${p5}</span><span class="dsh-col-reset">${r5 ? '（' + r5 + '）' : ''}</span>
             <span class="dsh-col-label">每星期配额：</span><span class="dsh-col-val">剩余 ${pW}</span><span class="dsh-col-reset">${rW ? '（' + rW + '）' : ''}</span>
           `
