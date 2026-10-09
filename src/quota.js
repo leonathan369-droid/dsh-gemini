@@ -36,7 +36,6 @@ export const DEFAULT_MODELS = [
   {
     id: "gemini-3.8-flash",
     name: "Gemini 3.8 Flash",
-    category: "text",
     contextWindow: 1048576,
     supportsImages: true,
     supportsThinking: true,
@@ -47,7 +46,6 @@ export const DEFAULT_MODELS = [
   {
     id: "claude-sonnet-4-6",
     name: "Claude Sonnet 4.6 (Thinking)",
-    category: "text",
     contextWindow: 200000,
     supportsImages: true,
     supportsThinking: true,
@@ -58,7 +56,6 @@ export const DEFAULT_MODELS = [
   {
     id: "gpt-oss-120b",
     name: "GPT-OSS 120B",
-    category: "text",
     contextWindow: 131072,
     supportsImages: true,
     supportsThinking: false,
@@ -69,7 +66,6 @@ export const DEFAULT_MODELS = [
   {
     id: "gemini-2.5-flash",
     name: "Gemini 2.5 Flash",
-    category: "text",
     contextWindow: 1048576,
     supportsImages: true,
     supportsThinking: false,
@@ -80,24 +76,12 @@ export const DEFAULT_MODELS = [
   {
     id: "gemini-2.5-flash-lite",
     name: "Gemini 2.5 Flash Lite",
-    category: "text",
     contextWindow: 1048576,
     supportsImages: true,
     supportsThinking: false,
     recommended: false,
     effortOptions: [],
     concreteIds: ["gemini-2.5-flash-lite"]
-  },
-  {
-    id: "gemini-3.1-flash-image",
-    name: "Gemini 3.1 图像生成 (官方原生)",
-    category: "image",
-    contextWindow: 32768,
-    supportsImages: true,
-    supportsThinking: false,
-    recommended: true,
-    effortOptions: [],
-    concreteIds: ["gemini-3.1-flash-image"]
   }
 ];
 
@@ -327,32 +311,31 @@ export async function fetchRemoteAvailableModels(token = null, force = false) {
   const modelMap = new Map();
 
   for (const [id, meta] of Object.entries(rawModels)) {
-    // Exclude internal noise, tab autocompletions, internal chat IDs, and agents
-    if (id.startsWith("tab_") || id.startsWith("chat_") || id.includes("agent") || meta.isInternal) continue;
+    // Exclude internal noise, tab autocompletions, internal chat IDs, agents, and image models
+    if (id.startsWith("tab_") || id.startsWith("chat_") || id.includes("agent") || id.includes("image") || meta.isInternal) continue;
     
     const { canonicalId, tier } = extractCanonical(id);
+    if (canonicalId.includes("image")) continue;
+
     let displayName = meta.displayName || id;
     if (tier) {
       displayName = displayName.replace(/\s*\((Low|Medium|High|Tiered|Extra Low)\)/i, "").trim();
     }
 
-    const isImage = canonicalId.includes("image");
     if (canonicalId === "gemini-3.8-flash") displayName = "Gemini 3.8 Flash";
     else if (canonicalId === "gemini-2.5-flash") displayName = "Gemini 2.5 Flash";
     else if (canonicalId === "gemini-2.5-flash-lite") displayName = "Gemini 2.5 Flash Lite";
     else if (canonicalId === "gemini-2.5-flash-thinking") displayName = "Gemini 2.5 Flash (Thinking)";
-    else if (isImage) displayName = "Gemini 3.1 图像生成 (官方原生)";
 
     if (!modelMap.has(canonicalId)) {
       modelMap.set(canonicalId, {
         id: canonicalId,
         name: displayName,
-        category: isImage ? "image" : "text",
-        contextWindow: meta.maxTokens || (isImage ? 32768 : 1048576),
+        contextWindow: meta.maxTokens || 1048576,
         maxOutputTokens: meta.maxOutputTokens || 65535,
-        supportsImages: Boolean(meta.supportsImages || isImage),
+        supportsImages: Boolean(meta.supportsImages),
         supportsThinking: Boolean(meta.supportsThinking || tier),
-        recommended: Boolean(meta.recommended || isImage || canonicalId === "gemini-3.8-flash" || canonicalId === "claude-sonnet-4-6"),
+        recommended: Boolean(meta.recommended || canonicalId === "gemini-3.8-flash" || canonicalId === "claude-sonnet-4-6"),
         effortOptions: tier ? [tier] : (meta.supportsThinking ? ["low", "medium", "high", "tiered"] : []),
         concreteIds: [id]
       });
@@ -381,27 +364,7 @@ export async function fetchRemoteAvailableModels(token = null, force = false) {
     const candidateCids = (m.concreteIds && m.concreteIds.length > 0) ? m.concreteIds : [m.id];
     const validCids = [];
 
-    // For image model: probe with a lightweight call (5s timeout)
-    if (m.category === "image") {
-      try {
-        const probeRes = await fetch("https://daily-cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse", {
-          method: "POST",
-          headers: getIdentityHeaderObject(token),
-          body: JSON.stringify({
-            project: "aicode-consumers",
-            model: m.id,
-            request: { contents: [{ role: "user", parts: [{ text: "ping" }] }] }
-          }),
-          signal: AbortSignal.timeout(5000)
-        });
-        if (probeRes.status === 200) {
-          verifiedList.push(m);
-        }
-      } catch {}
-      return;
-    }
-
-    // For text models: probe concreteIds concurrently
+    // Probe concreteIds concurrently
     await Promise.all(candidateCids.map(async (cid) => {
       try {
         const probeRes = await fetch("https://daily-cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse", {
@@ -441,12 +404,9 @@ export async function fetchRemoteAvailableModels(token = null, force = false) {
     }
   }));
 
-  // Sort: text models first (putting recommended first), then image models
+  // Sort: priority models first, then recommended
   const priorityOrder = ["gemini-3.8-flash", "claude-sonnet-4-6", "gpt-oss-120b", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
   verifiedList.sort((a, b) => {
-    if (a.category !== b.category) {
-      return a.category === "text" ? -1 : 1;
-    }
     const idxA = priorityOrder.indexOf(a.id);
     const idxB = priorityOrder.indexOf(b.id);
     if (idxA !== -1 && idxB !== -1) return idxA - idxB;

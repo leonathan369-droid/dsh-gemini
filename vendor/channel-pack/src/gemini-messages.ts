@@ -314,60 +314,23 @@ export function translateGeminiRequest(options: TranslateGeminiRequestOptions): 
     sessionId,
   }
 
-  const isImageModel = Boolean(options.modelId?.includes('image') || options.spec?.upstream?.includes('image'));
-  if (isImageModel) {
-    // 方案 B：彻底净化生图模型请求，剥离系统提示词、工具声明与历史上下文，防止挤爆
-    let lastUserText = '';
-    for (let i = contents.length - 1; i >= 0; i--) {
-      if (contents[i].role === 'user') {
-        const tPart = (contents[i].parts as { text?: string }[])?.find(p => p.text);
-        if (tPart?.text) {
-          lastUserText = tPart.text;
-          break;
-        }
-      }
-    }
-    if (!lastUserText) lastUserText = geminiFirstUserText(contents) || 'generate image';
-    request.contents = [{ role: 'user', parts: [{ text: lastUserText }] }];
-    request.generationConfig = { maxOutputTokens: 65535 };
-  } else {
-    // 普通文本模型
-    const imgDirective = [
-      "## 🎨 原生图像生成工具执行铁律 (Image Generation Directive)",
-      "你内置原生生图工具 `generate_image`。",
-      "- 当用户发出任何画图、绘画、生图、绘制、生成图片/插画/照片/壁纸/海报等意图时，你必须【主动且直接】发起调用 `generate_image` 工具，严禁要求用户手动输入工具名称！",
-      "- 严禁回答“作为文本模型无法画图”、“需要外部插件或技能”，你必须直接调用 `generate_image`。",
-      "- 调用参数 `prompt`：结合上下文自动丰富为具有专业光影、构图与高清细节的视觉描述词。"
-    ].join("\n");
-    const sysPrompt = options.system ? `${options.system}\n\n${imgDirective}` : imgDirective;
-    request.systemInstruction = { role: 'system', parts: [{ text: sysPrompt }] };
-    // 方案 A：为文本模型注入 generate_image 工具声明
-    const imgTool = {
-      name: 'generate_image',
-      description: 'Generates or paints high-quality images and artwork based on a visual prompt. Use this tool whenever the user asks to draw, paint, visualize, create an image, or produce an illustration.',
-      parameters: {
-        type: 'OBJECT',
-        properties: {
-          prompt: {
-            type: 'STRING',
-            description: 'Detailed visual description of the image to generate.',
-          },
-        },
-        required: ['prompt'],
-      },
-    };
-    const incomingTools = options.tools !== undefined && options.tools.length > 0 ? options.tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      parameters: sanitizeParameters(tool.parameters),
-    })) : [];
-    if (!incomingTools.some(t => t.name === 'generate_image')) {
-      incomingTools.push(imgTool as any);
-    }
-    request.tools = [{ functionDeclarations: incomingTools }];
-    const toolConfig = buildToolConfig(options.toolChoice, options.tools);
-    if (toolConfig !== undefined) request.toolConfig = toolConfig;
+  if (options.system !== undefined && options.system !== '') {
+    request.systemInstruction = { role: 'system', parts: [{ text: options.system }] }
   }
+
+  if (options.tools !== undefined && options.tools.length > 0) {
+    request.tools = [{
+      functionDeclarations: options.tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        // ⚠️ 清洗后的 schema（见 `sanitizeGeminiSchema`）：白名单外的键会让上游 400。
+        parameters: sanitizeParameters(tool.parameters),
+      })),
+    }]
+  }
+
+  const toolConfig = buildToolConfig(options.toolChoice, options.tools)
+  if (toolConfig !== undefined) request.toolConfig = toolConfig
 
   return {
     model: options.spec.upstream,
@@ -772,22 +735,6 @@ export async function* consumeGeminiSse(
         }
         yield* closeBlock()
         continue
-      }
-
-      const partObj = part as Record<string, unknown>
-      if (partObj.inlineData && typeof partObj.inlineData === 'object') {
-        const inline = partObj.inlineData as { mimeType?: string; data?: string }
-        if (typeof inline.data === 'string' && inline.data.length > 0) {
-          const mime = inline.mimeType || 'image/jpeg'
-          const imgMarkdown = `\n\n![Generated Image](data:${mime};base64,${inline.data})\n\n`
-          if (block?.kind !== 'text') yield* openBlock('text')
-          sawAnyChunk = true
-          if (block !== undefined) {
-            block.text += imgMarkdown
-            yield { type: 'text-delta', index: block.index, text: imgMarkdown }
-          }
-          continue
-        }
       }
 
       if (typeof part.text !== 'string' || part.text === '') continue
