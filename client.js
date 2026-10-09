@@ -381,7 +381,6 @@ window.__ModuleLoader__.load({
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
 }
 .dge_models_subcount {
   font-size: 12px;
@@ -389,18 +388,20 @@ window.__ModuleLoader__.load({
   color: var(--dsw-alias-label-tertiary, #858585);
 }
 .dge_models_subtitle_wrap {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
   cursor: pointer;
   user-select: none;
-  padding: 4px 6px;
+  padding: 2px 6px;
   margin-left: -6px;
+  margin-top: 4px;
   border-radius: 4px;
+  width: fit-content;
   transition: background .15s ease;
 }
 .dge_models_subtitle_wrap:hover {
-  background: var(--dsw-alias-interactive-bg-hover, rgba(255, 255, 255, 0.04));
+  background: var(--dsw-alias-interactive-bg-hover, rgba(255, 255, 255, 0.05));
 }
 
 .dge_account_header {
