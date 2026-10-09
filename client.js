@@ -714,9 +714,15 @@ window.__ModuleLoader__.load({
           const data = await res.json()
           if (data?.ok && Array.isArray(data.models)) {
             setModels(data.models)
+            setFetchStatus({ ok: true, count: data.models.length })
+          } else {
+            setFetchStatus({ ok: false })
           }
-        } catch {} finally {
+        } catch {
+          setFetchStatus({ ok: false })
+        } finally {
           setFetching(false)
+          setTimeout(() => setFetchStatus(null), 3500)
         }
       }
 
@@ -1224,7 +1230,7 @@ window.__ModuleLoader__.load({
             box.setAttribute('aria-haspopup', 'menu')
             box.setAttribute('aria-expanded', 'false')
             box.innerHTML = `
-              <span class="dsh-quota-txt">${poolPrefix} 5h: ${p5} ｜ 周: ${pW}</span>
+              <span class="dsh-quota-txt">5h: ${p5} ｜ 周: ${pW}</span>
               <div class="dsh-gemini-quota-card">${cardHtml}</div>`
             box.dataset.renderedKey = key
             box.onclick = async (e) => {

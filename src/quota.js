@@ -378,31 +378,66 @@ export async function fetchRemoteAvailableModels(token = null, force = false) {
   // Live verification probe: only keep models that return HTTP 200 OK
   const verifiedList = [];
   await Promise.all(candidates.map(async (m) => {
-    // For image model, we already know it is 200 OK (takes 10s to generate full image)
+    const candidateCids = (m.concreteIds && m.concreteIds.length > 0) ? m.concreteIds : [m.id];
+    const validCids = [];
+
+    // For image model: probe with a lightweight call (5s timeout)
     if (m.category === "image") {
-      verifiedList.push(m);
+      try {
+        const probeRes = await fetch("https://daily-cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse", {
+          method: "POST",
+          headers: getIdentityHeaderObject(token),
+          body: JSON.stringify({
+            project: "aicode-consumers",
+            model: m.id,
+            request: { contents: [{ role: "user", parts: [{ text: "ping" }] }] }
+          }),
+          signal: AbortSignal.timeout(5000)
+        });
+        if (probeRes.status === 200) {
+          verifiedList.push(m);
+        }
+      } catch {}
       return;
     }
-    try {
-      const probeTarget = m.concreteIds?.find(c => c.endsWith("-medium") || c.endsWith("-low")) || m.concreteIds?.[0] || m.id;
-      const probeRes = await fetch("https://daily-cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse", {
-        method: "POST",
-        headers: getIdentityHeaderObject(token),
-        body: JSON.stringify({
-          project: "aicode-consumers",
-          model: probeTarget,
-          request: {
-            contents: [{ role: "user", parts: [{ text: "hi" }] }],
-            generationConfig: { maxOutputTokens: 1 }
-          }
-        }),
-        signal: AbortSignal.timeout(6000)
+
+    // For text models: probe concreteIds concurrently
+    await Promise.all(candidateCids.map(async (cid) => {
+      try {
+        const probeRes = await fetch("https://daily-cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse", {
+          method: "POST",
+          headers: getIdentityHeaderObject(token),
+          body: JSON.stringify({
+            project: "aicode-consumers",
+            model: cid,
+            request: {
+              contents: [{ role: "user", parts: [{ text: "hi" }] }],
+              generationConfig: { maxOutputTokens: 1 }
+            }
+          }),
+          signal: AbortSignal.timeout(5000)
+        });
+        if (probeRes.status === 200) {
+          validCids.push(cid);
+        }
+      } catch {}
+    }));
+
+    if (validCids.length > 0) {
+      const tierOrder = ["low", "medium", "tiered", "high", "extra-low"];
+      validCids.sort((a, b) => {
+        const tA = tierOrder.findIndex(t => a.includes('-' + t));
+        const tB = tierOrder.findIndex(t => b.includes('-' + t));
+        if (tA !== -1 && tB !== -1) return tA - tB;
+        if (tA !== -1) return -1;
+        if (tB !== -1) return 1;
+        return 0;
       });
-      if (probeRes.status === 200) {
-        verifiedList.push(m);
+      m.concreteIds = validCids;
+      if (Array.isArray(m.effortOptions)) {
+        m.effortOptions = m.effortOptions.filter(opt => validCids.some(cid => cid.includes(opt)));
       }
-    } catch {
-      // Exclude models that fail or time out
+      verifiedList.push(m);
     }
   }));
 

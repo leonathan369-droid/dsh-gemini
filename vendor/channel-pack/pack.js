@@ -57815,26 +57815,60 @@ function translateGeminiRequest(options) {
       generation
     ) : base;
   }
+  const isImageModel = Boolean(options.modelId?.includes("image") || options.spec?.upstream?.includes("image"));
   const request2 = {
     contents,
     generationConfig: buildGenerationConfig(options.spec, options.maxTokens, options.temperature),
     sessionId
   };
-  if (options.system !== void 0 && options.system !== "") {
-    request2.systemInstruction = { role: "system", parts: [{ text: options.system }] };
+
+  if (isImageModel) {
+    // 方案 B：彻底净化生图模型请求，剥离系统提示词、工具声明与历史上下文，防止挤爆
+    let lastUserText = "";
+    for (let i = contents.length - 1; i >= 0; i--) {
+      if (contents[i].role === "user") {
+        const tPart = contents[i].parts?.find(p => p.text);
+        if (tPart?.text) {
+          lastUserText = tPart.text;
+          break;
+        }
+      }
+    }
+    if (!lastUserText) lastUserText = geminiFirstUserText(contents) || "generate image";
+    request2.contents = [{ role: "user", parts: [{ text: lastUserText }] }];
+    request2.generationConfig = { maxOutputTokens: 65535 };
+  } else {
+    // 普通文本模型
+    if (options.system !== void 0 && options.system !== "") {
+      request2.systemInstruction = { role: "system", parts: [{ text: options.system }] };
+    }
+    // 方案 A：为文本模型注入 generate_image 工具声明，使其可随时在对话中自动调起生图
+    const imgTool = {
+      name: "generate_image",
+      description: "Generates or paints high-quality images and artwork based on a visual prompt. Use this tool whenever the user asks to draw, paint, visualize, create an image, or produce an illustration.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          prompt: {
+            type: "STRING",
+            description: "Detailed description of the image to generate, including subjects, styles, lighting, composition, and colors."
+          }
+        },
+        required: ["prompt"]
+      }
+    };
+    const incomingTools = options.tools !== void 0 && options.tools.length > 0 ? options.tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      parameters: sanitizeParameters(tool.parameters)
+    })) : [];
+    if (!incomingTools.some(t => t.name === "generate_image")) {
+      incomingTools.push(imgTool);
+    }
+    request2.tools = [{ functionDeclarations: incomingTools }];
+    const toolConfig = buildToolConfig(options.toolChoice, options.tools);
+    if (toolConfig !== void 0) request2.toolConfig = toolConfig;
   }
-  if (options.tools !== void 0 && options.tools.length > 0) {
-    request2.tools = [{
-      functionDeclarations: options.tools.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        // ⚠️ 清洗后的 schema（见 `sanitizeGeminiSchema`）：白名单外的键会让上游 400。
-        parameters: sanitizeParameters(tool.parameters)
-      }))
-    }];
-  }
-  const toolConfig = buildToolConfig(options.toolChoice, options.tools);
-  if (toolConfig !== void 0) request2.toolConfig = toolConfig;
   return {
     model: options.spec.upstream,
     project: options.project ?? GEMINI_DEFAULT_PROJECT,
@@ -58056,6 +58090,61 @@ async function* consumeGeminiSse(options) {
     }
     for (const part of candidate.content?.parts ?? []) {
       if (part.functionCall !== void 0) {
+        if (part.functionCall.name === "generate_image" && options.credential) {
+          const args = part.functionCall.args ?? {};
+          const prompt = args.prompt || args.description || Object.values(args)[0] || "";
+          if (prompt) {
+            if (block?.kind !== "text") yield* openBlock("text");
+            sawAnyChunk = true;
+            const statusMsg = `\n\n🎨 *正在为您生成图像: "${prompt}"...*\n\n`;
+            if (block !== void 0) {
+              block.text += statusMsg;
+              yield { type: "text-delta", index: block.index, text: statusMsg };
+            }
+            try {
+              const imgRes = await fetch("https://daily-cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse", {
+                method: "POST",
+                headers: geminiHeaders(options.credential),
+                body: JSON.stringify({
+                  project: "aicode-consumers",
+                  model: "gemini-3.1-flash-image",
+                  request: { contents: [{ role: "user", parts: [{ text: prompt }] }] }
+                }),
+                signal: AbortSignal.timeout(25000)
+              });
+              const rawText = await imgRes.text();
+              const mData = rawText.match(/"data":\s*"([^"]+)"/);
+              const mMime = rawText.match(/"mimeType":\s*"([^"]+)"/);
+              if (mData && mData[1]) {
+                const mime = mMime ? mMime[1] : "image/jpeg";
+                const imgMd = `\n\n![Generated Image](data:${mime};base64,${mData[1]})\n\n`;
+                if (block !== void 0) {
+                  block.text += imgMd;
+                  yield { type: "text-delta", index: block.index, text: imgMd };
+                }
+              } else if (imgRes.status === 429 || rawText.includes("RESOURCE_EXHAUSTED")) {
+                const errMsg = "\n\n> ⚠️ *Google 官方生图通道当前处于额度冷却限制中 (429 RESOURCE_EXHAUSTED)，请稍后重试。*\n\n";
+                if (block !== void 0) {
+                  block.text += errMsg;
+                  yield { type: "text-delta", index: block.index, text: errMsg };
+                }
+              } else {
+                const errMsg = `\n\n> ⚠️ *生图未返回有效图像 (HTTP ${imgRes.status})*\n\n`;
+                if (block !== void 0) {
+                  block.text += errMsg;
+                  yield { type: "text-delta", index: block.index, text: errMsg };
+                }
+              }
+            } catch (err) {
+              const errMsg = `\n\n> ⚠️ *生图异常: ${err.message}*\n\n`;
+              if (block !== void 0) {
+                block.text += errMsg;
+                yield { type: "text-delta", index: block.index, text: errMsg };
+              }
+            }
+            continue;
+          }
+        }
         const args = part.functionCall.args ?? {};
         const argsJson = canonicalArgs(args);
         if (typeof part.thoughtSignature === "string" && part.thoughtSignature !== "") {
@@ -58547,6 +58636,7 @@ var GeminiAdapter = class extends LlmAdapter10 {
           try {
             yield* consumeGeminiSse({
               body,
+              credential,
               ...options.signal === void 0 ? {} : { signal: options.signal },
               idleTimeoutMs: GEMINI_IDLE_TIMEOUT_MS,
               ...sigStore === void 0 ? {} : { onSignature: (name2, argsJson, sig2) => sigStore.put(name2, argsJson, sig2) }

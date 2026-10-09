@@ -116,7 +116,7 @@ export function apply(ctx, config = {}) {
         // Live fetch models from Google Cloud Code PA
         if (p === 'models/fetch') {
           try {
-            const models = await fetchRemoteAvailableModels();
+            const models = await fetchRemoteAvailableModels(null, true);
             return res.end(JSON.stringify({ ok: true, models, count: models.length, fetchedAt: Date.now() }));
           } catch (err) {
             const fallback = getCachedModels();

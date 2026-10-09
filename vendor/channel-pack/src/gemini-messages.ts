@@ -314,23 +314,54 @@ export function translateGeminiRequest(options: TranslateGeminiRequestOptions): 
     sessionId,
   }
 
-  if (options.system !== undefined && options.system !== '') {
-    request.systemInstruction = { role: 'system', parts: [{ text: options.system }] }
+  const isImageModel = Boolean(options.modelId?.includes('image') || options.spec?.upstream?.includes('image'));
+  if (isImageModel) {
+    // 方案 B：彻底净化生图模型请求，剥离系统提示词、工具声明与历史上下文，防止挤爆
+    let lastUserText = '';
+    for (let i = contents.length - 1; i >= 0; i--) {
+      if (contents[i].role === 'user') {
+        const tPart = (contents[i].parts as { text?: string }[])?.find(p => p.text);
+        if (tPart?.text) {
+          lastUserText = tPart.text;
+          break;
+        }
+      }
+    }
+    if (!lastUserText) lastUserText = geminiFirstUserText(contents) || 'generate image';
+    request.contents = [{ role: 'user', parts: [{ text: lastUserText }] }];
+    request.generationConfig = { maxOutputTokens: 65535 };
+  } else {
+    // 普通文本模型
+    if (options.system !== undefined && options.system !== '') {
+      request.systemInstruction = { role: 'system', parts: [{ text: options.system }] };
+    }
+    // 方案 A：为文本模型注入 generate_image 工具声明
+    const imgTool = {
+      name: 'generate_image',
+      description: 'Generates or paints high-quality images and artwork based on a visual prompt. Use this tool whenever the user asks to draw, paint, visualize, create an image, or produce an illustration.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          prompt: {
+            type: 'STRING',
+            description: 'Detailed visual description of the image to generate.',
+          },
+        },
+        required: ['prompt'],
+      },
+    };
+    const incomingTools = options.tools !== undefined && options.tools.length > 0 ? options.tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      parameters: sanitizeParameters(tool.parameters),
+    })) : [];
+    if (!incomingTools.some(t => t.name === 'generate_image')) {
+      incomingTools.push(imgTool as any);
+    }
+    request.tools = [{ functionDeclarations: incomingTools }];
+    const toolConfig = buildToolConfig(options.toolChoice, options.tools);
+    if (toolConfig !== undefined) request.toolConfig = toolConfig;
   }
-
-  if (options.tools !== undefined && options.tools.length > 0) {
-    request.tools = [{
-      functionDeclarations: options.tools.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        // ⚠️ 清洗后的 schema（见 `sanitizeGeminiSchema`）：白名单外的键会让上游 400。
-        parameters: sanitizeParameters(tool.parameters),
-      })),
-    }]
-  }
-
-  const toolConfig = buildToolConfig(options.toolChoice, options.tools)
-  if (toolConfig !== undefined) request.toolConfig = toolConfig
 
   return {
     model: options.spec.upstream,
