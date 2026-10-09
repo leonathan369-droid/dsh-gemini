@@ -159,7 +159,10 @@ export function refreshTokenForRef(ref) {
           if (!parsed?.refresh_token) return null;
           const res = await fetch("https://oauth2.googleapis.com/token", {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              "User-Agent": "antigravity/4.3.0 (darwin/arm64)"
+            },
             body: new URLSearchParams({
               client_id: "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com",
               client_secret: "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",
@@ -202,13 +205,43 @@ export async function fetchOne(token, project = 'aicode-consumers') {
     }
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
     const data = await res.json();
-    const b = (data?.groups || []).flatMap(g => g?.buckets || []);
-    const b5 = b.find(x => x?.bucketId === 'gemini-5h' || x?.bucketType?.includes('HOUR'));
-    const bW = b.find(x => x?.bucketId === 'gemini-weekly' || x?.bucketType?.includes('WEEK'));
+    const groups = data?.userQuotaGroups || data?.groups || [];
+    const allBuckets = groups.flatMap(g => g?.buckets || []);
+
+    const gemini5h = allBuckets.find(x => x?.bucketId === 'gemini-5h');
+    const geminiWeekly = allBuckets.find(x => x?.bucketId === 'gemini-weekly');
+    const thirdParty5h = allBuckets.find(x => x?.bucketId === '3p-5h');
+    const thirdPartyWeekly = allBuckets.find(x => x?.bucketId === '3p-weekly');
+
+    const g3p = groups.find(g => {
+      const name = (g?.groupName || '').toLowerCase();
+      return name.includes('claude') || name.includes('gpt') || name.includes('3p');
+    });
+    const g3pBuckets = g3p?.buckets || [];
+    const fallback3p5h = thirdParty5h || g3pBuckets.find(x => x?.bucketId?.includes('5h') || x?.bucketType?.includes('HOUR'));
+    const fallback3pW = thirdPartyWeekly || g3pBuckets.find(x => x?.bucketId?.includes('week') || x?.bucketType?.includes('WEEK'));
+
+    const fiveHour = gemini5h ? { percent: Math.round((gemini5h.remainingFraction || 0) * 100), resetTime: gemini5h.resetTime } : null;
+    const weekly = geminiWeekly ? { percent: Math.round((geminiWeekly.remainingFraction || 0) * 100), resetTime: geminiWeekly.resetTime } : null;
+
+    const thirdParty = {
+      fiveHour: fallback3p5h ? { percent: Math.round((fallback3p5h.remainingFraction || 0) * 100), resetTime: fallback3p5h.resetTime } : null,
+      weekly: fallback3pW ? { percent: Math.round((fallback3pW.remainingFraction || 0) * 100), resetTime: fallback3pW.resetTime } : null
+    };
+
     return {
       ok: true,
-      fiveHour: b5 ? { percent: Math.round((b5.remainingFraction || 0) * 100), resetTime: b5.resetTime } : null,
-      weekly: bW ? { percent: Math.round((bW.remainingFraction || 0) * 100), resetTime: bW.resetTime } : null
+      fiveHour,
+      weekly,
+      thirdParty,
+      groups: groups.map(g => ({
+        name: g?.groupName,
+        buckets: (g?.buckets || []).map(b => ({
+          id: b?.bucketId,
+          percent: Math.round((b?.remainingFraction || 0) * 100),
+          resetTime: b?.resetTime
+        }))
+      }))
     };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -237,7 +270,13 @@ function extractCanonical(id) {
  * Fetch available models dynamically from Google Cloud Code PA
  * Groups raw upstream tier IDs into unified canonical models
  */
+let lastRemoteModelsFetch = 0;
+let cachedRemoteModelsResult = null;
+
 export async function fetchRemoteAvailableModels(token = null) {
+  if (!token && cachedRemoteModelsResult && Date.now() - lastRemoteModelsFetch < 30000) {
+    return cachedRemoteModelsResult;
+  }
   if (!token) {
     const accs = getAccounts().filter(a => a.enabled);
     if (!accs.length) throw new Error('No active Gemini account found');
@@ -304,6 +343,8 @@ export async function fetchRemoteAvailableModels(token = null) {
 
   const finalList = discovered.length > 0 ? discovered : DEFAULT_MODELS;
   saveCachedModels(finalList);
+  lastRemoteModelsFetch = Date.now();
+  cachedRemoteModelsResult = finalList;
   return finalList;
 }
 
@@ -335,6 +376,8 @@ export async function fetchQuota(force = false) {
 
   const sig = JSON.stringify(accounts.map(a => [a.id, a.enabled, a.credentialRef, a.modelRateLimits]));
   if (cache && cache.sig !== sig) { cache = null; force = true; }
+  // Anti-burst protection: throttle upstream force refresh to at most once per 3s
+  if (force && cache && Date.now() - lastFetch < 3000) return cache;
   if (!force && cache && Date.now() - lastFetch < 15000) return cache;
   if (inFlight) return inFlight;
 
@@ -400,6 +443,8 @@ export async function fetchQuota(force = false) {
           ok: q.ok,
           fiveHour: q.fiveHour,
           weekly: q.weekly,
+          thirdParty: q.thirdParty,
+          groups: q.groups,
           error: q.error
         });
       }
@@ -415,6 +460,11 @@ export async function fetchQuota(force = false) {
         primaryAccount: primary?.nickname,
         fiveHour: primary?.fiveHour || { percent: 0, resetTime: '' },
         weekly: primary?.weekly || { percent: 0, resetTime: '' },
+        thirdParty: primary?.thirdParty || {
+          fiveHour: { percent: 100, resetTime: '' },
+          weekly: { percent: 100, resetTime: '' }
+        },
+        groups: primary?.groups || [],
         accounts: list,
         fetchedAt: lastFetch
       };

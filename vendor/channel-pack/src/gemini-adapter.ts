@@ -721,7 +721,8 @@ export class GeminiAdapter extends LlmAdapter {
           }
         }
 
-        const rotatable = quotaLike || status === 401 || endpointFirst
+        // 404 绝不可记入 RateLimit 限流冷却，仅 429 (quotaLike) 或 401 凭据失效进行轮换与冷却
+        const rotatable = quotaLike || status === 401
         if (rotatable && pool !== undefined) {
           // 记限流/失效冷却：`getAvailableAccount` 会据此跳过该账号。
           if (currentAccountId !== '') {

@@ -56105,6 +56105,7 @@ function geminiCanonicalModelId(modelId) {
   }
   return modelId;
 }
+var GEMINI_UPSTREAM_OVERRIDES = /* @__PURE__ */ new Map();
 function geminiModelSpec(modelId, effort) {
   const canonical = geminiCanonicalModelId(modelId);
   const models = geminiFallbackEntries();
@@ -56127,7 +56128,26 @@ function geminiModelSpec(modelId, effort) {
   }
   const rawTier = modelId !== canonical ? modelId.slice(canonical.length + 1) : undefined;
   const tier = geminiEffortToTier(effort || rawTier);
-  const upstream = entry.id.endsWith(`-${tier}`) ? entry.id : `${canonical}-${tier}`;
+
+  let upstream = GEMINI_UPSTREAM_OVERRIDES.get(entry.id);
+  if (!upstream) {
+    const candidateTierId = `${canonical}-${tier}`;
+    const concreteIds = Array.isArray(entry.concreteIds) ? entry.concreteIds : [];
+    if (concreteIds.includes(candidateTierId)) {
+      upstream = candidateTierId;
+    } else if (concreteIds.includes(modelId)) {
+      upstream = modelId;
+    } else if (concreteIds.includes(entry.id)) {
+      upstream = entry.id;
+    } else if (concreteIds.length === 1 && !concreteIds[0].endsWith(`-${tier}`)) {
+      upstream = concreteIds[0];
+    } else if (entry.id.startsWith('claude-')) {
+      upstream = entry.id;
+    } else {
+      upstream = entry.id.endsWith(`-${tier}`) ? entry.id : candidateTierId;
+    }
+  }
+
   return {
     upstream,
     tier,
@@ -57866,7 +57886,66 @@ function resolveToolChoiceName(toolChoice) {
   return void 0;
 }
 function sanitizeParameters(parameters) {
-  return sanitizeGeminiSchema(parameters);
+  if (!parameters || typeof parameters !== "object" || Array.isArray(parameters)) {
+    return { type: "object", properties: {} };
+  }
+  const VALID_TYPES = new Set(["string", "number", "integer", "boolean", "array", "object", "null"]);
+
+  function cleanNode(node, isTop = false) {
+    if (!node || typeof node !== "object" || Array.isArray(node)) {
+      return { type: "string" };
+    }
+    const out = {};
+
+    if (isTop) {
+      out.type = "object";
+    } else if (typeof node.type === "string") {
+      const lower = node.type.toLowerCase();
+      out.type = VALID_TYPES.has(lower) ? lower : "string";
+    } else if (Array.isArray(node.type)) {
+      const filtered = node.type.map(t => String(t).toLowerCase()).filter(t => VALID_TYPES.has(t));
+      out.type = filtered.length > 0 ? filtered[0] : "string";
+    } else if (node.properties) {
+      out.type = "object";
+    } else if (node.items) {
+      out.type = "array";
+    } else {
+      out.type = "string";
+    }
+
+    if (typeof node.description === "string" && node.description) {
+      out.description = node.description;
+    }
+
+    if (out.type === "object" || isTop) {
+      out.properties = {};
+      if (node.properties && typeof node.properties === "object" && !Array.isArray(node.properties)) {
+        for (const [k, v] of Object.entries(node.properties)) {
+          if (typeof k === "string" && k) {
+            out.properties[k] = cleanNode(v, false);
+          }
+        }
+      }
+      if (Array.isArray(node.required)) {
+        const req = node.required.filter(k => typeof k === "string" && Object.prototype.hasOwnProperty.call(out.properties, k));
+        if (req.length > 0) out.required = req;
+      }
+    } else if (out.type === "array") {
+      if (node.items && typeof node.items === "object" && !Array.isArray(node.items)) {
+        out.items = cleanNode(node.items, false);
+      } else {
+        out.items = { type: "string" };
+      }
+    }
+
+    if (Array.isArray(node.enum) && node.enum.length > 0 && node.enum.every(e => typeof e === "string")) {
+      out.enum = [...node.enum];
+    }
+
+    return out;
+  }
+
+  return cleanNode(parameters, true);
 }
 function parseToolArguments2(raw) {
   if (raw.trim() === "") return {};
@@ -58364,6 +58443,7 @@ var GeminiAdapter = class extends LlmAdapter10 {
     let endpointSwitched = false;
     let droppedSignatures = false;
     let refreshedOnce = false;
+    let fallbackAttempted = false;
     let rotations = 0;
     let lastFailure;
     const sessionBumps = /* @__PURE__ */ new Map();
@@ -58446,6 +58526,9 @@ var GeminiAdapter = class extends LlmAdapter10 {
           );
         }
         if (response.ok) {
+          if (typeof entry !== "undefined" && spec?.upstream) {
+            GEMINI_UPSTREAM_OVERRIDES.set(entry.id, spec.upstream);
+          }
           if (response.body === null) {
             throw new LlmError15("gemini: \u54CD\u5E94\u7F3A\u5C11 body", "EMPTY_RESPONSE");
           }
@@ -58477,6 +58560,20 @@ var GeminiAdapter = class extends LlmAdapter10 {
             continue;
           }
         }
+        // 404 自适应无损回退（免写死规则，自动探测并记忆正确 upstream）
+        if (status === 404 && !fallbackAttempted) {
+          fallbackAttempted = true;
+          if (spec.upstream !== entry.id) {
+            spec.upstream = entry.id;
+            GEMINI_UPSTREAM_OVERRIDES.set(entry.id, entry.id);
+            continue;
+          } else if (!spec.upstream.endsWith(`-${spec.tier}`)) {
+            const cand = `${entry.id}-${spec.tier || 'medium'}`;
+            spec.upstream = cand;
+            GEMINI_UPSTREAM_OVERRIDES.set(entry.id, cand);
+            continue;
+          }
+        }
         const endpointFirst = status === 403 || status === 404 || status === 400 && isGeminiSwitchableText(text);
         const quotaLike = status === 429 || status === 400 && isGeminiQuotaText(text);
         if (status === 400 && isGeminiContextOverflow(text)) {
@@ -58497,7 +58594,8 @@ var GeminiAdapter = class extends LlmAdapter10 {
             continue;
           }
         }
-        const rotatable = quotaLike || status === 401 || endpointFirst;
+        // 关键防护：404 绝不可作为限流轮换或进入 RateLimit 冷却！仅 429 (quotaLike) 或 401 触发轮换
+        const rotatable = quotaLike || status === 401;
         if (rotatable && pool !== void 0) {
           if (currentAccountId !== "") {
             const cooldown = status === 401 ? GEMINI_AUTH_COOLDOWN_MS : GEMINI_RATE_LIMIT_COOLDOWN_MS;

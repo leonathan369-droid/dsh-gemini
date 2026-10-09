@@ -86,6 +86,9 @@ export function apply(ctx, config = {}) {
       req.on('error', reject);
     });
 
+    let lastPingTime = 0;
+    let lastPingCache = null;
+
     // B. Main Gemini API Gateway
     scoped.effect(() => server.register({
       kind: 'prefix',
@@ -181,9 +184,13 @@ export function apply(ctx, config = {}) {
           }
         }
 
-        // Ping / Latency test
+        // Ping / Latency test (with 3s debounce throttle guard to protect against button mashing)
         if (p === 'ping') {
-          const start = Date.now();
+          const now = Date.now();
+          if (lastPingCache && (now - lastPingTime < 3000)) {
+            return res.end(JSON.stringify(lastPingCache));
+          }
+          const start = now;
           try {
             const accs = getAccounts().filter(a => a.enabled);
             const token = accs[0] ? getToken(accs[0].credentialRef) : null;
@@ -193,7 +200,9 @@ export function apply(ctx, config = {}) {
             if (!q.ok) {
               return res.end(JSON.stringify({ ok: false, error: q.error || 'auth_failed', latency }));
             }
-            return res.end(JSON.stringify({ ok: true, latency, timestamp: Date.now() }));
+            lastPingTime = Date.now();
+            lastPingCache = { ok: true, latency, timestamp: lastPingTime };
+            return res.end(JSON.stringify(lastPingCache));
           } catch (err) {
             return res.end(JSON.stringify({ ok: false, error: err.message, latency: Date.now() - start }));
           }
@@ -231,5 +240,8 @@ export function apply(ctx, config = {}) {
     
 
     logger.info?.('dsh-gemini: web endpoints mounted');
+
+    // Background auto-sync latest Google upstream models (best-effort)
+    setTimeout(() => { fetchRemoteAvailableModels().catch(() => {}); }, 2000);
   });
 }

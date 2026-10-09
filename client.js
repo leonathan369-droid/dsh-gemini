@@ -40,6 +40,11 @@ window.__ModuleLoader__.load({
         quota5h: '5小时配额',
         quotaWeekly: '每星期配额',
         resetAt: '重置于',
+        quotaTitle: '额度查看',
+        quotaTitleGemini: '额度查看 · Gemini',
+        quotaTitleClaude: '额度查看 · Claude',
+        switchToClaudeQuota: '切换Claude额度',
+        switchToGeminiQuota: '切换Gemini额度',
         accountTitle: '账号管理',
         faqBtn: '常见问题',
         faqTitle: 'Gemini Engine 常见问题与排查指南',
@@ -89,6 +94,11 @@ window.__ModuleLoader__.load({
         quota5h: '5-Hour Quota',
         quotaWeekly: 'Weekly Quota',
         resetAt: 'Resets at',
+        quotaTitle: 'Quota Overview',
+        quotaTitleGemini: 'Quota Overview · Gemini',
+        quotaTitleClaude: 'Quota Overview · Claude',
+        switchToClaudeQuota: 'Switch to Claude',
+        switchToGeminiQuota: 'Switch to Gemini',
         accountTitle: 'Account Management',
         faqBtn: 'FAQ',
         faqTitle: 'Gemini Engine FAQ & Documentation',
@@ -304,6 +314,17 @@ window.__ModuleLoader__.load({
   font-size: 12px;
   color: var(--dsw-alias-label-tertiary, #858585);
   line-height: 1;
+}
+.dge_title_sub {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-tertiary, #858585);
+  margin-left: 8px;
+}
+.dge_quota_section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .dge_account_section {
   display: flex;
@@ -603,6 +624,7 @@ window.__ModuleLoader__.load({
       const [justRefreshed, setJustRefreshed] = useState(false)
       const [addingAccount, setAddingAccount] = useState(false)
       const [deletingId, setDeletingId] = useState(null)
+      const [quotaPoolIdx, setQuotaPoolIdx] = useState(0)
 
       const loadQuota = useCallback(async (force = false) => {
         try {
@@ -754,10 +776,34 @@ window.__ModuleLoader__.load({
         }
       }
 
-      const p5 = quota?.fiveHour?.percent ?? 0
-      const pW = quota?.weekly?.percent ?? 0
-      const r5 = formatReset(quota?.fiveHour?.resetTime)
-      const rW = formatReset(quota?.weekly?.resetTime)
+      const quotaPools = [
+        {
+          id: 'gemini',
+          name: 'Gemini',
+          title: t('quotaTitleGemini') || '额度查看 · Gemini',
+          p5: quota?.fiveHour?.percent ?? 0,
+          pW: quota?.weekly?.percent ?? 0,
+          r5: quota?.fiveHour?.resetTime,
+          rW: quota?.weekly?.resetTime,
+          btnLabel: t('switchToClaudeQuota') || '切换Claude额度'
+        },
+        {
+          id: 'thirdParty',
+          name: 'Claude',
+          title: t('quotaTitleClaude') || '额度查看 · Claude',
+          p5: quota?.thirdParty?.fiveHour?.percent ?? (quota?.fiveHour?.percent ?? 99),
+          pW: quota?.thirdParty?.weekly?.percent ?? (quota?.weekly?.percent ?? 99),
+          r5: quota?.thirdParty?.fiveHour?.resetTime || quota?.fiveHour?.resetTime,
+          rW: quota?.thirdParty?.weekly?.resetTime || quota?.weekly?.resetTime,
+          btnLabel: t('switchToGeminiQuota') || '切换Gemini额度'
+        }
+      ]
+
+      const curPool = quotaPools[quotaPoolIdx % 2]
+      const p5 = curPool.p5
+      const pW = curPool.pW
+      const r5 = formatReset(curPool.r5)
+      const rW = formatReset(curPool.rW)
 
       return h('div', { className: 'dge_container' },
         // Header
@@ -800,8 +846,20 @@ window.__ModuleLoader__.load({
           )
         ),
 
-        // Dual Quota Gauges
-        h('div', { className: 'dge_grid_dual' },
+        // Quota Section (Header matches dge_account_header format and aligns perfectly)
+        h('div', { className: 'dge_quota_section' },
+          h('div', { className: 'dge_account_header' },
+            h('h3', { className: 'dge_title' },
+              t('quotaTitle'),
+              h('span', { className: 'dge_title_sub' }, curPool.name)
+            ),
+            h('button', {
+              className: 'dge_btn dge_btn_secondary',
+              onClick: () => setQuotaPoolIdx(prev => (prev === 0 ? 1 : 0))
+            }, curPool.btnLabel)
+          ),
+          // Dual Quota Gauges
+          h('div', { className: 'dge_grid_dual' },
           // 5-Hour Quota Card
           h('div', { className: 'dge_card' },
             h('div', { className: 'dge_card_title' }, t('quota5h')),
@@ -829,7 +887,8 @@ window.__ModuleLoader__.load({
               )
             )
           )
-        ),
+        )
+      ),
 
         // Account Management List
         h('div', { className: 'dge_account_section' },
@@ -970,27 +1029,29 @@ window.__ModuleLoader__.load({
       })()
       let loading = false, lastFetch = 0, scheduled = false, rendering = false
 
-      function buildCardHtml(q) {
+      function buildCardHtml(q, is3P = false) {
         if (!q) return ''
         const accs = q.accounts?.length ? q.accounts : [{
-          nickname: q.primaryAccount || 'Gemini 账号',
-          isPrimary: true, fiveHour: q.fiveHour, weekly: q.weekly
+          nickname: q.primaryAccount || 'Google 账号',
+          isPrimary: true, fiveHour: q.fiveHour, weekly: q.weekly, thirdParty: q.thirdParty
         }]
         const activePrimaryId = accs.find(a => a.enabled !== false && a.id === q.primaryAccountId)?.id || accs.find(a => a.enabled !== false)?.id
 
         return accs.slice(0, 2).map((a, i) => {
           const isDisabled = a.enabled === false
-          const p5 = isDisabled ? '已停用' : (a.fiveHour ? `${a.fiveHour.percent}%` : (a.ok === false ? '不可用' : '—'))
-          const pW = isDisabled ? '已停用' : (a.weekly ? `${a.weekly.percent}%` : (a.ok === false ? '不可用' : '—'))
-          const r5 = isDisabled ? '' : (a.fiveHour ? formatReset(a.fiveHour.resetTime) : '')
-          const rW = isDisabled ? '' : (a.weekly ? formatReset(a.weekly.resetTime) : '')
+          const poolData = is3P && (a.thirdParty || q.thirdParty) ? (a.thirdParty || q.thirdParty) : a
+          const p5 = isDisabled ? '已停用' : (poolData.fiveHour ? `${poolData.fiveHour.percent}%` : (a.ok === false ? '不可用' : '—'))
+          const pW = isDisabled ? '已停用' : (poolData.weekly ? `${poolData.weekly.percent}%` : (a.ok === false ? '不可用' : '—'))
+          const r5 = isDisabled ? '' : (poolData.fiveHour ? formatReset(poolData.fiveHour.resetTime) : '')
+          const rW = isDisabled ? '' : (poolData.weekly ? formatReset(poolData.weekly.resetTime) : '')
           const isPrimary = !isDisabled && (a.id ? a.id === activePrimaryId : (a.isPrimary ?? i === 0))
-          const isLow = !!(!isDisabled && a.fiveHour && a.fiveHour.percent < 20)
+          const isLow = !!(!isDisabled && poolData.fiveHour && poolData.fiveHour.percent < 20)
+          const poolTag = is3P ? ' [Claude]' : ''
           const badge = isDisabled
             ? '<span class="dsh-badge-disabled">已停用</span>'
             : (isPrimary
-              ? '<span class="dsh-badge-primary">使用中</span>'
-              : (a.isRateLimited ? '<span class="dsh-badge-warn">限流冷却</span>' : '<span class="dsh-badge-standby">备用</span>'))
+              ? `<span class="dsh-badge-primary">使用中${poolTag}</span>`
+              : (a.isRateLimited ? '<span class="dsh-badge-warn">限流冷却</span>' : `<span class="dsh-badge-standby">备用${poolTag}</span>`))
 
           return `
             ${i > 0 ? '<div class="dsh-acct-sep"></div>' : ''}
@@ -1058,12 +1119,24 @@ window.__ModuleLoader__.load({
         return null
       }
 
-      const isTargetGemini = (el) => {
-        if (!el) return false
+      function detectActiveModelInfo(el) {
+        if (!el) return null
         const sel = getActiveSelection(el)
-        if (sel) return sel.provider === 'gemini'
+        const provider = (sel?.provider || '').toLowerCase()
+        let modelId = (sel?.model || sel?.id || '').toLowerCase()
         const txt = ((el.textContent || '') + ' ' + (el.getAttribute('title') || '') + ' ' + (el.getAttribute('aria-label') || '')).toLowerCase()
-        return (txt.includes('gemini') && txt.includes('3.8')) || (txt.includes('gemini') && !/\b(1\.5|2\.0|2\.5|custom|api|openai|gateway)\b/.test(txt))
+
+        if (!modelId) {
+          if (txt.includes('claude')) modelId = 'claude-sonnet-4-6'
+          else if (txt.includes('gpt')) modelId = 'gpt-oss-120b'
+          else if (txt.includes('gemini')) modelId = 'gemini-3.8-flash'
+        }
+
+        const isMatched = provider === 'gemini' || txt.includes('claude') || txt.includes('gpt-oss') || txt.includes('gemini')
+        if (!isMatched) return null
+
+        const is3P = modelId.includes('claude') || modelId.includes('gpt') || txt.includes('claude') || txt.includes('gpt')
+        return { is3P, modelId, isMatched: true }
       }
 
       function render() {
@@ -1073,16 +1146,21 @@ window.__ModuleLoader__.load({
           const anchor = findAnchor()
           let box = document.getElementById('dsh-gemini-quota-indicator')
           if (!anchor) return box?.remove()
-          if (!isTargetGemini(anchor) || (quota && quota.enabled === false)) return box && (box.style.display = 'none')
+          const modelInfo = detectActiveModelInfo(anchor)
+          if (!modelInfo || (quota && quota.enabled === false)) return box && (box.style.display = 'none')
           if (!quota) {
             if (box) box.style.display = 'none'
             return fetchQuota()
           }
 
-          const p5 = quota.fiveHour ? `${quota.fiveHour.percent}%` : '—'
-          const pW = quota.weekly ? `${quota.weekly.percent}%` : '—'
-          const cardHtml = buildCardHtml(quota)
-          const key = `${p5}_${pW}_${cardHtml.length}_${quota.primaryAccountId}`
+          const is3P = modelInfo.is3P
+          const activePool = is3P && quota.thirdParty ? quota.thirdParty : quota
+          const poolPrefix = is3P ? (modelInfo.modelId.includes('gpt') ? 'GPT' : 'Claude') : 'Gemini'
+
+          const p5 = activePool.fiveHour ? `${activePool.fiveHour.percent}%` : '—'
+          const pW = activePool.weekly ? `${activePool.weekly.percent}%` : '—'
+          const cardHtml = buildCardHtml(quota, is3P)
+          const key = `${poolPrefix}_${p5}_${pW}_${cardHtml.length}_${quota.primaryAccountId}`
 
           if (!box) {
             box = document.createElement('div')
@@ -1092,7 +1170,7 @@ window.__ModuleLoader__.load({
             box.setAttribute('aria-haspopup', 'menu')
             box.setAttribute('aria-expanded', 'false')
             box.innerHTML = `
-              <span class="dsh-quota-txt">5h: ${p5} ｜ 周: ${pW}</span>
+              <span class="dsh-quota-txt">${poolPrefix} 5h: ${p5} ｜ 周: ${pW}</span>
               <div class="dsh-gemini-quota-card">${cardHtml}</div>`
             box.dataset.renderedKey = key
             box.onclick = async (e) => {

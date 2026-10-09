@@ -399,7 +399,66 @@ function resolveToolChoiceName(toolChoice: unknown): string | undefined {
 
 /** 工具参数 schema 清洗（薄包装，便于单测直接测本函数）。 */
 function sanitizeParameters(parameters: Record<string, unknown>): Record<string, unknown> {
-  return sanitizeGeminiSchema(parameters)
+  if (!parameters || typeof parameters !== "object" || Array.isArray(parameters)) {
+    return { type: "object", properties: {} };
+  }
+  const VALID_TYPES = new Set(["string", "number", "integer", "boolean", "array", "object", "null"]);
+
+  function cleanNode(node: any, isTop = false): any {
+    if (!node || typeof node !== "object" || Array.isArray(node)) {
+      return { type: "string" };
+    }
+    const out: Record<string, any> = {};
+
+    if (isTop) {
+      out.type = "object";
+    } else if (typeof node.type === "string") {
+      const lower = node.type.toLowerCase();
+      out.type = VALID_TYPES.has(lower) ? lower : "string";
+    } else if (Array.isArray(node.type)) {
+      const filtered = node.type.map((t: any) => String(t).toLowerCase()).filter((t: any) => VALID_TYPES.has(t));
+      out.type = filtered.length > 0 ? filtered[0] : "string";
+    } else if (node.properties) {
+      out.type = "object";
+    } else if (node.items) {
+      out.type = "array";
+    } else {
+      out.type = "string";
+    }
+
+    if (typeof node.description === "string" && node.description) {
+      out.description = node.description;
+    }
+
+    if (out.type === "object" || isTop) {
+      out.properties = {};
+      if (node.properties && typeof node.properties === "object" && !Array.isArray(node.properties)) {
+        for (const [k, v] of Object.entries(node.properties)) {
+          if (typeof k === "string" && k) {
+            out.properties[k] = cleanNode(v, false);
+          }
+        }
+      }
+      if (Array.isArray(node.required)) {
+        const req = node.required.filter((k: any) => typeof k === "string" && Object.prototype.hasOwnProperty.call(out.properties, k));
+        if (req.length > 0) out.required = req;
+      }
+    } else if (out.type === "array") {
+      if (node.items && typeof node.items === "object" && !Array.isArray(node.items)) {
+        out.items = cleanNode(node.items, false);
+      } else {
+        out.items = { type: "string" };
+      }
+    }
+
+    if (Array.isArray(node.enum) && node.enum.length > 0 && node.enum.every((e: any) => typeof e === "string")) {
+      out.enum = [...node.enum];
+    }
+
+    return out;
+  }
+
+  return cleanNode(parameters, true);
 }
 
 /** 解析工具参数 JSON；失败/非对象时退化为 `{}`（**不编造参数**）。 */
