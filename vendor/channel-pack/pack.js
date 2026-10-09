@@ -57839,9 +57839,15 @@ function translateGeminiRequest(options) {
     request2.generationConfig = { maxOutputTokens: 65535 };
   } else {
     // 普通文本模型
-    if (options.system !== void 0 && options.system !== "") {
-      request2.systemInstruction = { role: "system", parts: [{ text: options.system }] };
-    }
+    const imgDirective = [
+      "## 🎨 原生图像生成工具执行铁律 (Image Generation Directive)",
+      "你内置原生生图工具 `generate_image`。",
+      "- 当用户发出任何画图、绘画、生图、绘制、生成图片/插画/照片/壁纸/海报等意图时，你必须【主动且直接】发起调用 `generate_image` 工具，严禁要求用户手动输入工具名称！",
+      "- 严禁回答“作为文本模型无法画图”、“需要外部插件或技能”，你必须直接调用 `generate_image`。",
+      "- 调用参数 `prompt`：结合上下文自动丰富为具有专业光影、构图与高清细节的视觉描述词。"
+    ].join("\n");
+    const sysPrompt = options.system ? `${options.system}\n\n${imgDirective}` : imgDirective;
+    request2.systemInstruction = { role: "system", parts: [{ text: sysPrompt }] };
     // 方案 A：为文本模型注入 generate_image 工具声明，使其可随时在对话中自动调起生图
     const imgTool = {
       name: "generate_image",
