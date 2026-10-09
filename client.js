@@ -388,6 +388,20 @@ window.__ModuleLoader__.load({
   font-weight: normal;
   color: var(--dsw-alias-label-tertiary, #858585);
 }
+.dge_models_subtitle_wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 6px;
+  margin-left: -6px;
+  border-radius: 4px;
+  transition: background .15s ease;
+}
+.dge_models_subtitle_wrap:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgba(255, 255, 255, 0.04));
+}
 
 .dge_account_header {
   display: flex;
@@ -442,20 +456,6 @@ window.__ModuleLoader__.load({
   margin: 2px 0 4px 6px;
 }
 
-.dge_models_title_wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  user-select: none;
-  padding: 2px 4px;
-  margin: -2px -4px;
-  border-radius: var(--dsw-radius-sm, 6px);
-  transition: background .15s ease;
-}
-.dge_models_title_wrap:hover {
-  background: var(--dsw-alias-interactive-bg-hover, rgba(255, 255, 255, 0.05));
-}
 .dge_collapse_icon {
   font-size: 11px;
   color: var(--dsw-alias-label-caption, #888);
@@ -638,7 +638,8 @@ window.__ModuleLoader__.load({
       const [fetching, setFetching] = useState(false)
       const [fetchStatus, setFetchStatus] = useState(null)
       const [showFaq, setShowFaq] = useState(false)
-      const [modelsCollapsed, setModelsCollapsed] = useState(false)
+      const [textCollapsed, setTextCollapsed] = useState(false)
+      const [imageCollapsed, setImageCollapsed] = useState(false)
       const [openFaq, setOpenFaq] = useState({})
       const toggleFaq = (num) => setOpenFaq(prev => ({ ...prev, [num]: !prev[num] }))
       const [pingMs, setPingMs] = useState(null)
@@ -993,10 +994,7 @@ window.__ModuleLoader__.load({
         // Available Models Section (Clean basic information only)
         h('div', { className: 'dge_models_section' },
           h('div', { className: 'dge_models_header' },
-            h('div', { className: 'dge_models_title_wrap', onClick: () => setModelsCollapsed(!modelsCollapsed) },
-              h('h3', { className: 'dge_title' }, t('modelRoster')),
-              h('span', { className: 'dge_collapse_icon' }, modelsCollapsed ? '▶' : '▼')
-            ),
+            h('h3', { className: 'dge_title' }, t('modelRoster')),
             h('button', {
               className: 'dge_btn dge_btn_secondary',
               disabled: fetching,
@@ -1012,7 +1010,6 @@ window.__ModuleLoader__.load({
             )
           ),
           (() => {
-            if (modelsCollapsed) return null;
             const textModels = models.filter(m => !(m.category === 'image' || m.id?.includes('image')));
             const imageModels = models.filter(m => m.category === 'image' || m.id?.includes('image'));
             const renderCard = (m) => h('div', { key: m.id, className: 'dge_model_card' },
@@ -1030,18 +1027,30 @@ window.__ModuleLoader__.load({
 
             return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '16px' } },
               textModels.length > 0 ? h('div', { className: 'dge_models_subgroup' },
-                h('div', { className: 'dge_models_subtitle' },
-                  t('categoryTextModels') || '文本模型',
-                  h('span', { className: 'dge_models_subcount' }, `(${textModels.length})`)
+                h('div', {
+                  className: 'dge_models_subtitle_wrap',
+                  onClick: () => setTextCollapsed(!textCollapsed)
+                },
+                  h('div', { className: 'dge_models_subtitle' },
+                    t('categoryTextModels') || '文本模型',
+                    h('span', { className: 'dge_models_subcount' }, `(${textModels.length})`)
+                  ),
+                  h('span', { className: 'dge_collapse_icon' }, textCollapsed ? '▶' : '▼')
                 ),
-                h('div', { className: 'dge_model_grid' }, textModels.map(renderCard))
+                !textCollapsed ? h('div', { className: 'dge_model_grid' }, textModels.map(renderCard)) : null
               ) : null,
               imageModels.length > 0 ? h('div', { className: 'dge_models_subgroup' },
-                h('div', { className: 'dge_models_subtitle' },
-                  t('categoryImageModels') || '生图模型',
-                  h('span', { className: 'dge_models_subcount' }, `(${imageModels.length})`)
+                h('div', {
+                  className: 'dge_models_subtitle_wrap',
+                  onClick: () => setImageCollapsed(!imageCollapsed)
+                },
+                  h('div', { className: 'dge_models_subtitle' },
+                    t('categoryImageModels') || '生图模型',
+                    h('span', { className: 'dge_models_subcount' }, `(${imageModels.length})`)
+                  ),
+                  h('span', { className: 'dge_collapse_icon' }, imageCollapsed ? '▶' : '▼')
                 ),
-                h('div', { className: 'dge_model_grid' }, imageModels.map(renderCard))
+                !imageCollapsed ? h('div', { className: 'dge_model_grid' }, imageModels.map(renderCard)) : null
               ) : null
             );
           })()
