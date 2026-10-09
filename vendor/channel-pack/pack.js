@@ -58081,6 +58081,17 @@ async function* consumeGeminiSse(options) {
         yield* closeBlock();
         continue;
       }
+      if (part.inlineData && typeof part.inlineData.data === "string" && part.inlineData.data.length > 0) {
+        const mime = part.inlineData.mimeType || "image/jpeg";
+        const imgMarkdown = "\n\n![Generated Image](data:" + mime + ";base64," + part.inlineData.data + ")\n\n";
+        if (block?.kind !== "text") yield* openBlock("text");
+        sawAnyChunk = true;
+        if (block !== void 0) {
+          block.text += imgMarkdown;
+          yield { type: "text-delta", index: block.index, text: imgMarkdown };
+        }
+        continue;
+      }
       if (typeof part.text !== "string" || part.text === "") continue;
       if (part.thought === true) {
         if (block?.kind !== "reasoning") yield* openBlock("reasoning");

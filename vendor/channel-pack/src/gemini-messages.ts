@@ -737,6 +737,22 @@ export async function* consumeGeminiSse(
         continue
       }
 
+      const partObj = part as Record<string, unknown>
+      if (partObj.inlineData && typeof partObj.inlineData === 'object') {
+        const inline = partObj.inlineData as { mimeType?: string; data?: string }
+        if (typeof inline.data === 'string' && inline.data.length > 0) {
+          const mime = inline.mimeType || 'image/jpeg'
+          const imgMarkdown = `\n\n![Generated Image](data:${mime};base64,${inline.data})\n\n`
+          if (block?.kind !== 'text') yield* openBlock('text')
+          sawAnyChunk = true
+          if (block !== undefined) {
+            block.text += imgMarkdown
+            yield { type: 'text-delta', index: block.index, text: imgMarkdown }
+          }
+          continue
+        }
+      }
+
       if (typeof part.text !== 'string' || part.text === '') continue
 
       if (part.thought === true) {

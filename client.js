@@ -27,7 +27,9 @@ window.__ModuleLoader__.load({
         statusOk: '运行正常',
         stealthActive: '设备特征指纹已隔离',
         fetchModels: '获取最新模型',
-        fetchingModels: '正在拉取…',
+        fetchingModels: '正在探活验证…',
+        categoryTextModels: '文本模型',
+        categoryImageModels: '生图模型',
         pingTest: '延迟测速',
         pingTesting: '测试中…',
         pingSuccess: '延迟',
@@ -81,7 +83,9 @@ window.__ModuleLoader__.load({
         statusOk: 'Normal',
         stealthActive: 'Hardware Fingerprint Isolated',
         fetchModels: 'Fetch Models',
-        fetchingModels: 'Fetching…',
+        fetchingModels: 'Probing Models…',
+        categoryTextModels: 'Text Models',
+        categoryImageModels: 'Image Generation Models',
         pingTest: 'Ping Test',
         pingTesting: 'Pinging…',
         pingSuccess: 'Latency',
@@ -364,6 +368,25 @@ window.__ModuleLoader__.load({
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+.dge_models_subgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dge_models_subtitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-secondary, #b3b3b3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.dge_models_subcount {
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--dsw-alias-label-tertiary, #858585);
 }
 
 .dge_account_header {
@@ -988,19 +1011,40 @@ window.__ModuleLoader__.load({
                   : t('fetchModels'))
             )
           ),
-          !modelsCollapsed ? h('div', { className: 'dge_model_grid' },
-            models.map(m => h('div', { key: m.id, className: 'dge_model_card' },
+          (() => {
+            if (modelsCollapsed) return null;
+            const textModels = models.filter(m => !(m.category === 'image' || m.id?.includes('image')));
+            const imageModels = models.filter(m => m.category === 'image' || m.id?.includes('image'));
+            const renderCard = (m) => h('div', { key: m.id, className: 'dge_model_card' },
               h('div', { className: 'dge_model_head' },
                 h('div', { className: 'dge_model_name' }, m.name || m.id),
                 h('div', { className: 'dge_model_id' }, m.id)
               ),
               h('div', { className: 'dge_model_tags' },
+                m.category === 'image' ? h('span', { className: 'dge_model_tag', style: { color: '#8ab4f8', borderColor: 'rgba(66,133,244,.35)' } }, '🎨 官方原生生图') : null,
                 m.contextWindow ? h('span', { className: 'dge_model_tag' }, `${Math.round(m.contextWindow / 1024)}k 上下文`) : null,
                 m.supportsThinking ? h('span', { className: 'dge_model_tag' }, t('modelThinking')) : null,
-                m.supportsImages ? h('span', { className: 'dge_model_tag' }, t('modelVision')) : null,
+                m.supportsImages && m.category !== 'image' ? h('span', { className: 'dge_model_tag' }, t('modelVision')) : null,
               )
-            ))
-          ) : null
+            );
+
+            return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '16px' } },
+              textModels.length > 0 ? h('div', { className: 'dge_models_subgroup' },
+                h('div', { className: 'dge_models_subtitle' },
+                  t('categoryTextModels') || '文本模型',
+                  h('span', { className: 'dge_models_subcount' }, `(${textModels.length})`)
+                ),
+                h('div', { className: 'dge_model_grid' }, textModels.map(renderCard))
+              ) : null,
+              imageModels.length > 0 ? h('div', { className: 'dge_models_subgroup' },
+                h('div', { className: 'dge_models_subtitle' },
+                  t('categoryImageModels') || '生图模型',
+                  h('span', { className: 'dge_models_subcount' }, `(${imageModels.length})`)
+                ),
+                h('div', { className: 'dge_model_grid' }, imageModels.map(renderCard))
+              ) : null
+            );
+          })()
         ),
 
         // Stealth Diagnostics

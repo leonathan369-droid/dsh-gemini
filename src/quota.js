@@ -34,44 +34,70 @@ export function setAccountCooldown(accountId, cooldownMs = 60000) {
 
 export const DEFAULT_MODELS = [
   {
-    id: 'gemini-3.8-flash',
-    name: 'Gemini 3.8 Flash',
+    id: "gemini-3.8-flash",
+    name: "Gemini 3.8 Flash",
+    category: "text",
     contextWindow: 1048576,
     supportsImages: true,
     supportsThinking: true,
     recommended: true,
-    effortOptions: ['low', 'medium', 'high', 'tiered'],
-    concreteIds: ['gemini-3.8-flash-low', 'gemini-3.8-flash-medium', 'gemini-3.8-flash-high', 'gemini-3.8-flash-tiered']
+    effortOptions: ["low", "medium", "high", "tiered"],
+    concreteIds: ["gemini-3.8-flash-low", "gemini-3.8-flash-medium", "gemini-3.8-flash-high", "gemini-3.8-flash-tiered"]
   },
   {
-    id: 'gemini-3.5-flash',
-    name: 'Gemini 3.5 Flash',
-    contextWindow: 1048576,
-    supportsImages: true,
-    supportsThinking: false,
-    recommended: false,
-    effortOptions: [],
-    concreteIds: ['gemini-3.5-flash']
-  },
-  {
-    id: 'gemini-2.5-pro',
-    name: 'Gemini 2.5 Pro',
-    contextWindow: 1048576,
+    id: "claude-sonnet-4-6",
+    name: "Claude Sonnet 4.6 (Thinking)",
+    category: "text",
+    contextWindow: 200000,
     supportsImages: true,
     supportsThinking: true,
-    recommended: false,
-    effortOptions: ['low', 'medium', 'high', 'tiered'],
-    concreteIds: ['gemini-2.5-pro']
+    recommended: true,
+    effortOptions: ["medium"],
+    concreteIds: ["claude-sonnet-4-6"]
   },
   {
-    id: 'gemini-2.5-flash',
-    name: 'Gemini 2.5 Flash',
+    id: "gpt-oss-120b",
+    name: "GPT-OSS 120B",
+    category: "text",
+    contextWindow: 131072,
+    supportsImages: true,
+    supportsThinking: false,
+    recommended: false,
+    effortOptions: [],
+    concreteIds: ["gpt-oss-120b-medium"]
+  },
+  {
+    id: "gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
+    category: "text",
     contextWindow: 1048576,
     supportsImages: true,
     supportsThinking: false,
     recommended: false,
     effortOptions: [],
-    concreteIds: ['gemini-2.5-flash']
+    concreteIds: ["gemini-2.5-flash"]
+  },
+  {
+    id: "gemini-2.5-flash-lite",
+    name: "Gemini 2.5 Flash Lite",
+    category: "text",
+    contextWindow: 1048576,
+    supportsImages: true,
+    supportsThinking: false,
+    recommended: false,
+    effortOptions: [],
+    concreteIds: ["gemini-2.5-flash-lite"]
+  },
+  {
+    id: "gemini-3.1-flash-image",
+    name: "Gemini 3.1 图像生成 (官方原生)",
+    category: "image",
+    contextWindow: 32768,
+    supportsImages: true,
+    supportsThinking: false,
+    recommended: true,
+    effortOptions: [],
+    concreteIds: ["gemini-3.1-flash-image"]
   }
 ];
 
@@ -273,26 +299,26 @@ function extractCanonical(id) {
 let lastRemoteModelsFetch = 0;
 let cachedRemoteModelsResult = null;
 
-export async function fetchRemoteAvailableModels(token = null) {
-  if (!token && cachedRemoteModelsResult && Date.now() - lastRemoteModelsFetch < 30000) {
+export async function fetchRemoteAvailableModels(token = null, force = false) {
+  if (!force && !token && cachedRemoteModelsResult && Date.now() - lastRemoteModelsFetch < 30000) {
     return cachedRemoteModelsResult;
   }
   if (!token) {
     const accs = getAccounts().filter(a => a.enabled);
-    if (!accs.length) throw new Error('No active Gemini account found');
+    if (!accs.length) throw new Error("No active Gemini account found");
     token = getToken(accs[0].credentialRef);
-    if (!token) throw new Error('Unable to resolve OAuth token');
+    if (!token) throw new Error("Unable to resolve OAuth token");
   }
 
   const res = await fetch(MODELS_URL, {
-    method: 'POST',
+    method: "POST",
     headers: getIdentityHeaderObject(token),
-    body: JSON.stringify({ project: 'aicode-consumers' }),
+    body: JSON.stringify({ project: "aicode-consumers" }),
     signal: AbortSignal.timeout(6000)
   });
 
   if (!res.ok) {
-    const errText = await res.text().catch(() => '');
+    const errText = await res.text().catch(() => "");
     throw new Error(`Google Cloud Code returned HTTP ${res.status}: ${errText.slice(0, 100)}`);
   }
 
@@ -301,24 +327,33 @@ export async function fetchRemoteAvailableModels(token = null) {
   const modelMap = new Map();
 
   for (const [id, meta] of Object.entries(rawModels)) {
-    if (id.startsWith('tab_') || id.startsWith('chat_2') || meta.isInternal) continue;
+    // Exclude internal noise, tab autocompletions, internal chat IDs, and agents
+    if (id.startsWith("tab_") || id.startsWith("chat_") || id.includes("agent") || meta.isInternal) continue;
     
     const { canonicalId, tier } = extractCanonical(id);
     let displayName = meta.displayName || id;
     if (tier) {
-      displayName = displayName.replace(/\s*\((Low|Medium|High|Tiered|Extra Low)\)/i, '').trim();
+      displayName = displayName.replace(/\s*\((Low|Medium|High|Tiered|Extra Low)\)/i, "").trim();
     }
+
+    const isImage = canonicalId.includes("image");
+    if (canonicalId === "gemini-3.8-flash") displayName = "Gemini 3.8 Flash";
+    else if (canonicalId === "gemini-2.5-flash") displayName = "Gemini 2.5 Flash";
+    else if (canonicalId === "gemini-2.5-flash-lite") displayName = "Gemini 2.5 Flash Lite";
+    else if (canonicalId === "gemini-2.5-flash-thinking") displayName = "Gemini 2.5 Flash (Thinking)";
+    else if (isImage) displayName = "Gemini 3.1 图像生成 (官方原生)";
 
     if (!modelMap.has(canonicalId)) {
       modelMap.set(canonicalId, {
         id: canonicalId,
         name: displayName,
-        contextWindow: meta.maxTokens || 1048576,
+        category: isImage ? "image" : "text",
+        contextWindow: meta.maxTokens || (isImage ? 32768 : 1048576),
         maxOutputTokens: meta.maxOutputTokens || 65535,
-        supportsImages: Boolean(meta.supportsImages),
+        supportsImages: Boolean(meta.supportsImages || isImage),
         supportsThinking: Boolean(meta.supportsThinking || tier),
-        recommended: Boolean(meta.recommended),
-        effortOptions: tier ? [tier] : (meta.supportsThinking ? ['low', 'medium', 'high', 'tiered'] : []),
+        recommended: Boolean(meta.recommended || isImage || canonicalId === "gemini-3.8-flash" || canonicalId === "claude-sonnet-4-6"),
+        effortOptions: tier ? [tier] : (meta.supportsThinking ? ["low", "medium", "high", "tiered"] : []),
         concreteIds: [id]
       });
     } else {
@@ -334,14 +369,58 @@ export async function fetchRemoteAvailableModels(token = null) {
     }
   }
 
-  const discovered = Array.from(modelMap.values()).map(m => {
-    // Standardize effort order
-    const order = ['low', 'medium', 'high', 'tiered', 'extra-low'];
+  const candidates = Array.from(modelMap.values()).map(m => {
+    const order = ["low", "medium", "high", "tiered", "extra-low"];
     m.effortOptions.sort((a, b) => order.indexOf(a) - order.indexOf(b));
     return m;
   });
 
-  const finalList = discovered.length > 0 ? discovered : DEFAULT_MODELS;
+  // Live verification probe: only keep models that return HTTP 200 OK
+  const verifiedList = [];
+  await Promise.all(candidates.map(async (m) => {
+    // For image model, we already know it is 200 OK (takes 10s to generate full image)
+    if (m.category === "image") {
+      verifiedList.push(m);
+      return;
+    }
+    try {
+      const probeTarget = m.concreteIds?.find(c => c.endsWith("-medium") || c.endsWith("-low")) || m.concreteIds?.[0] || m.id;
+      const probeRes = await fetch("https://daily-cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse", {
+        method: "POST",
+        headers: getIdentityHeaderObject(token),
+        body: JSON.stringify({
+          project: "aicode-consumers",
+          model: probeTarget,
+          request: {
+            contents: [{ role: "user", parts: [{ text: "hi" }] }],
+            generationConfig: { maxOutputTokens: 1 }
+          }
+        }),
+        signal: AbortSignal.timeout(6000)
+      });
+      if (probeRes.status === 200) {
+        verifiedList.push(m);
+      }
+    } catch {
+      // Exclude models that fail or time out
+    }
+  }));
+
+  // Sort: text models first (putting recommended first), then image models
+  const priorityOrder = ["gemini-3.8-flash", "claude-sonnet-4-6", "gpt-oss-120b", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
+  verifiedList.sort((a, b) => {
+    if (a.category !== b.category) {
+      return a.category === "text" ? -1 : 1;
+    }
+    const idxA = priorityOrder.indexOf(a.id);
+    const idxB = priorityOrder.indexOf(b.id);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return (b.recommended ? 1 : 0) - (a.recommended ? 1 : 0);
+  });
+
+  const finalList = verifiedList.length > 0 ? verifiedList : DEFAULT_MODELS;
   saveCachedModels(finalList);
   lastRemoteModelsFetch = Date.now();
   cachedRemoteModelsResult = finalList;
